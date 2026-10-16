@@ -1,0 +1,10 @@
+# Produced inside the image, never copied from the host.
+node_modules
+dist
+
+# A developer's local configuration must not reach a built bundle. Vite loads
+# .env.local in every mode and it overrides .env.production, so leaving it in
+# the context would let an image build silently inherit localhost values while
+# the platform's git-based build — which never sees a gitignored file — ships
+# something different.
+.env.local

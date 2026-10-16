@@ -1,0 +1,30 @@
+server {
+    listen ${PORT};
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    # Vite fingerprints every file it emits, so the name changes whenever the
+    # contents do and these can never go stale.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # The one thing this server has to do that a plain file host does not.
+    # Client-side routes exist only in the browser's history and have no
+    # file behind them; without this, a refresh on one answers 404.
+    #
+    # index.html is deliberately not cached: it is the document naming the
+    # current asset hashes, so a stale copy points a browser at files that no
+    # longer exist.
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
+    }
+}
