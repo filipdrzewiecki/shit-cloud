@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Głosowanie na lunch</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 24px; color: #1f2328; max-width: 420px; }
+  h1 { font-size: 20px; }
+  .option { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+  .bar { flex: 1; background: #eaeef2; border-radius: 4px; height: 24px; position: relative; }
+  .fill { background: #fd8c73; height: 100%; border-radius: 4px; transition: width .2s; }
+  .bar span { position: absolute; left: 8px; top: 3px; font-size: 13px; }
+  button { padding: 4px 10px; cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>Gdzie idziemy w piątek?</h1>
+<div id="options"></div>
+<script>
+  const votes = { 'Pizza Nonna': 5, 'Bistro Zielone': 3, 'Sushi Kaizen': 2, 'Pierogarnia': 4 };
+  const el = document.getElementById('options');
+  function render() {
+    const max = Math.max(...Object.values(votes));
+    el.innerHTML = Object.entries(votes).map(([name, n]) => `
+      <div class="option">
+        <div class="bar"><div class="fill" style="width:${n / max * 100}%"></div><span>${name} — ${n}</span></div>
+        <button data-name="${name}">+1</button>
+      </div>`).join('');
+  }
+  el.addEventListener('click', e => {
+    if (e.target.dataset.name) { votes[e.target.dataset.name]++; render(); }
+  });
+  render();
+</script>
+</body>
+</html>

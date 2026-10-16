@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Kalendarz obecności</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 24px; color: #1f2328; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.hint { color: #656d76; margin: 0 0 16px; font-size: 14px; }
+  table { border-collapse: collapse; font-size: 14px; }
+  th, td { border: 1px solid #d0d7de; padding: 6px 10px; text-align: center; }
+  th:first-child, td:first-child { text-align: left; font-weight: 600; }
+  td.cell { cursor: pointer; min-width: 64px; user-select: none; }
+  .office { background: #dafbe1; }
+  .remote { background: #ddf4ff; }
+  .off { background: #fff1e5; }
+  .legend span { display: inline-block; padding: 2px 8px; margin-right: 8px; border-radius: 4px; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Kalendarz obecności — tydzień 43</h1>
+<p class="hint">Kliknij komórkę, żeby zmienić status.</p>
+<p class="legend"><span class="office">Biuro</span><span class="remote">Zdalnie</span><span class="off">Wolne</span></p>
+<table id="grid"></table>
+<script>
+  const days = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt'];
+  const people = ['Filip', 'Anna', 'Tomek', 'Kasia'];
+  const states = ['', 'office', 'remote', 'off'];
+  const labels = { '': '—', office: 'Biuro', remote: 'Zdalnie', off: 'Wolne' };
+  const data = { Filip: ['office', 'office', 'remote', 'office', 'off'], Anna: ['remote', 'office', 'office', '', ''] };
+  const grid = document.getElementById('grid');
+  function render() {
+    grid.innerHTML = '<tr><th></th>' + days.map(d => `<th>${d}</th>`).join('') + '</tr>' +
+      people.map(p => '<tr><td>' + p + '</td>' + days.map((_, i) => {
+        const s = (data[p] || [])[i] || '';
+        return `<td class="cell ${s}" data-p="${p}" data-i="${i}">${labels[s]}</td>`;
+      }).join('') + '</tr>').join('');
+  }
+  grid.addEventListener('click', e => {
+    const td = e.target.closest('td.cell');
+    if (!td) return;
+    const row = data[td.dataset.p] ||= [];
+    row[td.dataset.i] = states[(states.indexOf(row[td.dataset.i] || '') + 1) % states.length];
+    render();
+  });
+  render();
+</script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Lista zespołu</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 24px; color: #1f2328; max-width: 480px; }
+  h1 { font-size: 20px; }
+  form { display: flex; gap: 8px; margin-bottom: 12px; }
+  input { flex: 1; padding: 6px 8px; }
+  button { padding: 6px 12px; cursor: pointer; }
+  ul { padding: 0; list-style: none; }
+  li { padding: 6px 0; border-bottom: 1px solid #eaeef2; display: flex; justify-content: space-between; }
+  li button { padding: 0 8px; }
+</style>
+</head>
+<body>
+<h1>Lista zespołu</h1>
+<form id="add">
+  <input id="name" placeholder="Dodaj pozycję…" required>
+  <button>Dodaj</button>
+</form>
+<ul id="list"></ul>
+<script>
+  const items = ['Przygotować demo', 'Zamówić kawę'];
+  const list = document.getElementById('list');
+  function render() {
+    list.innerHTML = items.map((t, i) => `<li>${t} <button data-i="${i}">✕</button></li>`).join('');
+  }
+  document.getElementById('add').addEventListener('submit', e => {
+    e.preventDefault();
+    const input = document.getElementById('name');
+    items.push(input.value);
+    input.value = '';
+    render();
+  });
+  list.addEventListener('click', e => {
+    if (e.target.dataset.i) { items.splice(+e.target.dataset.i, 1); render(); }
+  });
+  render();
+</script>
+</body>
+</html>
