@@ -3,6 +3,7 @@ package com.drzewiecki.shitcloud.controller;
 import com.drzewiecki.shitcloud.model.ChatRequest;
 import com.drzewiecki.shitcloud.model.ChatResponse;
 import com.drzewiecki.shitcloud.service.MockChatService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/chat")
+@PreAuthorize("hasRole('BUILDER')")
 public class ChatController {
 
     private final MockChatService chatService;

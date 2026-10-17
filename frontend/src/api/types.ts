@@ -25,6 +25,17 @@ export interface Me {
   groups: string[]
   builder: boolean
   admin: boolean
+  guest: boolean
+}
+
+export interface GuestLoginRequest {
+  password: string
+  name: string
+}
+
+export interface GuestToken {
+  token: string
+  expiresAt: string
 }
 
 export interface ChatMessage {

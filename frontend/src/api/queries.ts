@@ -1,6 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { saveGuest } from '../auth/guestSession'
 import { api } from './client'
-import type { AppDetail, AppSummary, ChatMessage, ChatResponse, DeployRequest, Me } from './types'
+import type {
+  AppDetail,
+  AppSummary,
+  ChatMessage,
+  ChatResponse,
+  DeployRequest,
+  GuestLoginRequest,
+  GuestToken,
+  Me,
+} from './types'
 
 export function useMe() {
   return useQuery({ queryKey: ['me'], queryFn: () => api.get<Me>('/api/me'), staleTime: Infinity })
@@ -25,5 +35,13 @@ export function useDeploy() {
 export function useChat() {
   return useMutation({
     mutationFn: (messages: ChatMessage[]) => api.post<ChatResponse>('/api/chat', { messages }),
+  })
+}
+
+export function useGuestSignIn() {
+  return useMutation({
+    mutationFn: (request: GuestLoginRequest) =>
+      api.post<GuestToken>('/api/auth/guest', request, { anonymous: true }),
+    onSuccess: (session) => saveGuest(session),
   })
 }

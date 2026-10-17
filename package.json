@@ -2,7 +2,7 @@
   "name": "shit-cloud",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"mvn spring-boot:run\" \"npm run dev --prefix frontend\""
+    "dev": "concurrently \"mvn spring-boot:run -Dspring-boot.run.profiles=dev\" \"npm run dev --prefix frontend\""
   },
   "devDependencies": {
     "concurrently": "^9.0.0"

@@ -9,6 +9,10 @@ COPY . .
 # Vite inlines every VITE_* value here, at build time. They come from the
 # committed .env.production; .dockerignore keeps a developer's .env.local out of
 # the context so this build cannot quietly inherit local configuration.
+# The Auth0 client id is the exception: it is a variable on the Railway frontend
+# service, which Railway passes in as this build argument, and an environment
+# variable beats .env.production in Vite.
+ARG VITE_AUTH0_CLIENT_ID
 RUN npm run build
 
 FROM nginx:alpine
