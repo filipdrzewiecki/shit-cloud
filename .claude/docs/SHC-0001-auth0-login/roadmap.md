@@ -13,8 +13,8 @@ Flow: **full** (one file per phase, phase gates mandatory).
     - [x] Task 7 — Existing controllers: `@PreAuthorize`, `/api/me` + owner from token
     - [x] Task 8 — Frontend: Auth0 provider, env, `guestSession.ts`, `client.ts` tokens
     - [x] Task 9 — `SignInPage`, gate, builders-only guard, sign-out, `AppFrame` comment, AGENTS.md
-    - [ ] Task 1 — Auth0 setup + Railway variables (user, manual — solution-design §3; moved to the end on request)
-    - [ ] Task 10 — Fill `VITE_AUTH0_CLIENT_ID`, deploy to `test` (user pushes) + acceptance walk-through
+    - [x] Task 1 — Auth0 setup (shared my-intelligence tenant, roles `ShitCloud Builder` / `ShitCloud Admin`) + Railway variables
+    - [~] Task 10 — Deployed `a4681da` to `test`; guest flow verified on test. Builder sign-in through Auth0 still to be checked by the user
 - [ ] Phase 4 — Tests
 - [ ] Phase 5 — Wiki docs (optional — ask)
 - [ ] Phase 6 — Frontend implementation instruction (optional — ask; frontend is in this repo, likely skipped)

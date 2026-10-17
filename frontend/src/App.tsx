@@ -27,14 +27,24 @@ export function App() {
   // password) surfaces as a 401 on whatever call happens next. Both sessions are
   // dropped so the sign-in page does not bounce straight back here.
   useEffect(() => {
+    let handling = false
     setUnauthenticatedHandler(() => {
       // Several queries in flight each report the same lost session; only the first one acts.
-      if (window.location.pathname === '/sign-in') return
+      if (handling || window.location.pathname === '/sign-in') return
+      handling = true
       const here = window.location.pathname + window.location.search
       clearGuest()
       queryClient.clear()
-      if (isAuthenticated) void logout({ openUrl: false })
-      navigate(signInPath(here), { replace: true })
+      if (!isAuthenticated) {
+        navigate(signInPath(here), { replace: true })
+        return
+      }
+      // The Auth0 session must be gone before the sign-in page renders, or it still sees a signed-in
+      // builder and sends them straight back here, into the same 401. The local logout is enough; the
+      // Auth0 session cookie stays, so the next builder sign-in is a single click.
+      void logout({ openUrl: false }).finally(() =>
+        navigate(signInPath(here, 'builder-rejected'), { replace: true }),
+      )
     })
   }, [isAuthenticated, logout, navigate, queryClient])
 

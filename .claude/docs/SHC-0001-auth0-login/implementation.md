@@ -71,3 +71,15 @@ to the end, next to Task 10.
   - the session survives a full reload; sign-out clears it and lands on `/sign-in`
   - an invalid stored token sends the reader back to sign-in once
 - **Not verified:** anything that needs Auth0 (builder sign-in, roles claim, refresh, Auth0 logout). That is part of Task 1 + Task 10.
+
+## Post-deploy fix — builder sign-in rejected without explanation
+Deployed `a4681da`. Guest sign-in worked on test. A builder sign-in through Google came back from Auth0 with a
+token, but the API answered 401 on `/api/me` and `/api/apps` (Railway HTTP logs, 21:23–21:24), and the GUI
+retried several times before settling on the sign-in page with no message.
+- `security/LoggingBearerTokenEntryPoint`: wraps Spring's bearer entry point and logs the rejection reason at
+  WARN when a token was sent (never the token). This tells a missing email claim apart from a wrong audience,
+  an expiry or a wrong issuer in the Railway logs.
+- `App.tsx` unauthenticated handler: a guard so it runs once, and it waits for the local Auth0 `logout` before
+  navigating. Before, the sign-in page still saw `isAuthenticated` and bounced the reader back into the 401.
+- `SignInPage` shows Auth0 callback errors (e.g. the Action's deny message) and `reason=builder-rejected`
+  (token refused by the API). `auth/returnTo.ts` `signInPath` takes the optional reason.

@@ -58,7 +58,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/guest").permitAll()
                         .anyRequest().authenticated()
                 )
-                .oauth2ResourceServer(oauth2 -> oauth2.authenticationManagerResolver(resolver));
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .authenticationManagerResolver(resolver)
+                        .authenticationEntryPoint(new LoggingBearerTokenEntryPoint()));
 
         return http.build();
     }

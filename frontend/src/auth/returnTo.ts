@@ -8,6 +8,11 @@ export function safeReturnTo(value: string | null): string {
   return value
 }
 
-export function signInPath(returnTo: string): string {
-  return `/sign-in?returnTo=${encodeURIComponent(returnTo)}`
+/** Why the reader landed on the sign-in page, when it was not simply a missing session. */
+export type SignInReason = 'builder-rejected'
+
+export function signInPath(returnTo: string, reason?: SignInReason): string {
+  const params = new URLSearchParams({ returnTo })
+  if (reason) params.set('reason', reason)
+  return `/sign-in?${params.toString()}`
 }

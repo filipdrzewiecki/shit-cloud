@@ -26,13 +26,28 @@ function guestError(error: Error): string {
 }
 
 /**
+ * Auth0 reports a refused login (e.g. the post-login Action's deny message) as
+ * an error on the callback; a token the API would not accept comes back as
+ * `reason=builder-rejected`. Either way the builder needs to hear why, or the
+ * button just appears to do nothing.
+ */
+function builderSignInProblem(auth0Error: Error | undefined, reason: string | null): string | null {
+  if (auth0Error) return `Builder sign-in failed: ${auth0Error.message}`
+  if (reason === 'builder-rejected') {
+    return 'Builder sign-in worked in Auth0, but ShitCloud did not accept the token. Ask the platform admin to check the Auth0 setup.'
+  }
+  return null
+}
+
+/**
  * The front door. Most people use the shared password and only open apps;
  * builders and admins sign in through Auth0 to create them.
  */
 export function SignInPage() {
   const [params] = useSearchParams()
   const returnTo = safeReturnTo(params.get('returnTo'))
-  const { isAuthenticated, loginWithRedirect } = useAuth0()
+  const { isAuthenticated, loginWithRedirect, error: auth0Error } = useAuth0()
+  const builderProblem = builderSignInProblem(auth0Error, params.get('reason'))
   const guest = useGuestSession()
   const signIn = useGuestSignIn()
   const [password, setPassword] = useState('')
@@ -74,6 +89,7 @@ export function SignInPage() {
           </button>
         </form>
 
+        {builderProblem && <p className="error-text">{builderProblem}</p>}
         <div className="sign-in-builder">
           <span className="muted">Building apps?</span>
           <button
