@@ -83,3 +83,50 @@ retried several times before settling on the sign-in page with no message.
   navigating. Before, the sign-in page still saw `isAuthenticated` and bounced the reader back into the 401.
 - `SignInPage` shows Auth0 callback errors (e.g. the Action's deny message) and `reason=builder-rejected`
   (token refused by the API). `auth/returnTo.ts` `signInPath` takes the optional reason.
+- Root cause on the Auth0 side: `shitcloud-claims` was deployed but not added to the post-login trigger, so only
+  my-intelligence's "Add agent claim" ran and the token had no ShitCloud claims. The new log line named it at once
+  (`Token carries no https://shit-cloud-api/email claim`). After the Action was added and applied, builder
+  sign-in on test works, with the admin role.
+
+## Phase 4 — Tests
+`pom.xml`: `maven-failsafe-plugin`, so `*IT` classes run in `mvn verify` and `mvn test` stays unit-only.
+Tests were compiled (`mvn -q test-compile`) but **not run** by the agent; the user runs them.
+
+Added (unit, `mvn test`):
+- `security/GuestTokenServiceTest`
+  - `issuedToken_decodesToTheGuest`, `issuedToken_expiresAfterTheConfiguredTtl`, `passwordMatches_onlyTheConfiguredPassword`
+  - `changingThePassword_invalidatesEarlierTokens`, `expiredToken_isRejected`, `tokenSignedWithAnotherSecret_isRejected`
+  - `blankPassword_disablesGuestSignIn`, `passwordWithShortSecret_failsAtStartup`
+- `security/LoginAttemptLimiterTest`: `blocks_onceTheLimitIsReached`, `countsEachIpSeparately`,
+  `reset_clearsTheIp`, `unknownIp_isNotBlocked`
+- `security/IdpUserConverterTest`
+  - `builder_getsTheBuilderRoleOnly`, `admin_isAlsoABuilder`, `noKnownGroup_meansNoRole`, `missingGroupsClaim_meansNoRole`
+  - `missingName_fallsBackToTheId`, `missingIdClaim_isRejected`
+- helper `security/TestAuthProperties`
+
+Added (integration, `mvn verify`):
+- base `IntegrationTest`: guest callers use real guest tokens; identity-provider callers are built by the
+  production converter (Auth0 signature checking is the one step not covered)
+- `security/SecurityIT`
+  - `withoutToken_everyApiEndpointAnswers401` (5 endpoints), `health_isOpenForTheRailwayHealthcheck`
+  - `garbageToken_answers401`, `tokenFromAnUnknownIssuer_answers401`, `guestIssuerWithAForgedSignature_answers401`
+  - `preflightFromTheGui_isAllowed`, `preflightFromAnotherOrigin_isRefused`
+- `controller/GuestLoginIT`
+  - `correctPassword_returnsATokenThatSignsTheGuestIn`, `nameIsTrimmed`, `wrongPassword_answers401`
+  - `blankName_answers400`, `tooLongName_answers400`
+  - `afterTooManyFailures_evenTheCorrectPasswordAnswers429`, `aForgedForwardedPrefix_doesNotEscapeTheLimit`
+  - `successfulSignIn_resetsTheFailureCount`, `tokenIssuedUnderAnEarlierPassword_isRejected`
+- `controller/GuestLoginDisabledIT`: `guestSignIn_answers404`
+- `controller/MeControllerIT`: `builder_isDescribedFromTheToken`, `admin_isAlsoABuilder`, `guest_hasNoRole`
+- `controller/AppControllerIT`
+  - `guest_canListAndOpenApps`, `guest_cannotDeploy`, `identityProviderUserWithoutRole_cannotDeploy`
+  - `builder_deploysAndIsRecordedAsOwner`, `admin_canDeploy`
+- `controller/ChatControllerIT`: `guest_cannotUseTheChat`, `builder_getsAReply`
+- `controller/ControllerAuthorizationIT`: `everyController_declaresAnAuthorizationRule`, `theSuiteSeesEveryController`
+
+Not covered: the limiter's window expiry (would need an injectable clock) and Auth0 signature validation
+(needs Auth0's keys; verified live on test instead).
+- Fix after the user's run: `expiredToken_isRejected` failed because `NimbusJwtEncoder` refuses to encode a token
+  whose `exp` is before `iat` (the test used a negative TTL). `GuestTokenService` gained a package-private
+  constructor taking a `Clock` (production uses `Clock.systemUTC()` through the `@Autowired` constructor); the test
+  issues a normal 1-day token "a day and two minutes ago" and expects the decoder to reject it.

@@ -2,6 +2,7 @@ package com.drzewiecki.shitcloud.security;
 
 import com.drzewiecki.shitcloud.model.GuestToken;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -24,6 +25,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
@@ -49,12 +51,20 @@ public class GuestTokenService {
 
     private final AuthProperties.Guest guest;
     private final String audience;
+    private final Clock clock;
     private final SecretKey key;
     private final String passwordVersion;
 
+    @Autowired
     public GuestTokenService(AuthProperties properties) {
+        this(properties, Clock.systemUTC());
+    }
+
+    /** The clock sets the issue time; tests use it to mint tokens that are already expired. */
+    GuestTokenService(AuthProperties properties, Clock clock) {
         this.guest = properties.guest();
         this.audience = properties.audience();
+        this.clock = clock;
         if (!guest.enabled()) {
             this.key = null;
             this.passwordVersion = null;
@@ -86,7 +96,7 @@ public class GuestTokenService {
     }
 
     public GuestToken issue(String name) {
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         Instant expiresAt = now.plus(guest.tokenTtl());
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(ISSUER)
