@@ -25,7 +25,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 
 - [x] **SHC-0001 — Auth0 login + roles.** SPA login (PKCE), API as JWT resource server, user /
   builder / admin roles from a token claim, `/api/me` from the token, deploy restricted to builders.
-- [ ] **SHC-0002 — MongoDB + persisted app registry.** Mongo on Railway as single-node replica set
+- [x] **SHC-0002 — MongoDB + persisted app registry.** Mongo on Railway as single-node replica set
   (`rs0`), `MongoTemplate`, `_apps` + `_app_versions` (TTL) replace the in-memory `AppStore`;
   index creation at startup. Local dev story (container or embedded).
 - [ ] **SHC-0003 — App serving on its own origin.** Resolve the Railway wildcard-domain question

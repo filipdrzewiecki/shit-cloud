@@ -2,6 +2,20 @@
 
 What each closed ticket delivered, newest first. Durable details live in the files each entry points to.
 
+## SHC-0002 — MongoDB + persisted app registry (closed 2026-10-18)
+
+- MongoDB 7 single-node replica set `rs0` on Railway (template `Mongo Single Replica`, private network for the
+  API; a TCP proxy kept on purpose to inspect `test`). The API requires `MONGODB_URI`.
+- The in-memory `AppStore` is replaced by `AppRegistry`: apps live in `_apps`, every deploy is kept in
+  `_app_versions` (90-day TTL), written in one transaction. The creator stays owner, each version has its author.
+  A concurrent deploy gets 409, over 5 MB gets 413, and the GUI shows both. Indexes are created at startup.
+- Local dev and tests need no install: an embedded `mongod` replica set (test scope) via `DevApplication`;
+  sample apps are seeded in the dev profile only.
+- 21 unit + 48 integration tests green; deployed to `test` and verified by the user, including in Compass.
+- Process: the wiki and frontend-instruction phases were dropped from the SDLC flow (frontend is always in
+  scope, docs happen on close). New critical rule: never commit or push without an explicit order.
+- Reference: `.claude/docs/mongodb.md`.
+
 ## SHC-0001 — Auth0 login + roles (closed 2026-10-18)
 
 - Two-tier sign-in: builders/admins through Auth0 (shared my-intelligence tenant, roles `ShitCloud Builder` /

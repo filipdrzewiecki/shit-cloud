@@ -65,6 +65,15 @@ exports.onExecutePostLogin = async (event, api) => {
 };
 ```
 
+- **Password users without public sign-up** (for builders who should not depend on Google):
+  - A ShitCloud-only database connection `shitcloud-users` with **Disable Sign Ups ON**, enabled only for
+    `ShitCloud GUI`. Never change sign-ups on the shared `Username-Password-Authentication`: my-intelligence needs them.
+  - On `ShitCloud GUI` → Connections, enable `shitcloud-users` (+ Google if wanted) and **disable**
+    `Username-Password-Authentication`, so the ShitCloud login page has no "Sign up" link.
+  - Create the user in User Management → Users with connection `shitcloud-users`, and assign `ShitCloud Builder`.
+    Without a role the Action denies the login.
+  - One shared account means one email as `owner` / `updatedBy` for everything it deploys. Create one user per
+    person if authorship matters.
 - **Railway `api` variables:** `GUEST_PASSWORD`, `GUEST_TOKEN_SECRET` (e.g. `openssl rand -base64 48`).
   Claim names, issuer, audience and group names have defaults in `application.properties` and env overrides
   (`AUTH_*`, `BUILDERS_GROUP`, `ADMINS_GROUP`) — the on-prem switch to ADFS/Entra is configuration, not code.

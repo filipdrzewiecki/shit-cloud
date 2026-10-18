@@ -202,6 +202,9 @@ Never close one without asking, and never leave the question out.
    entry first, plus pointers to the files from step 1.
 4. Mark the ticket `[x]` in `.claude/docs/product-roadmap.md`.
 
+Closing does **not** include a commit or a push. Leave the result in the working tree and say what you would
+run; commit or push only when the user orders it (see the critical rule in `.claude/AGENTS.md`).
+
 ---
 
 ## Phase Gate Protocol

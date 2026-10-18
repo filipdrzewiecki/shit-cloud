@@ -1,5 +1,29 @@
 # shit-cloud
 
+## CRITICAL — Never commit or push unless the user orders it
+
+**Never run `git commit` or `git push` unless the user has specifically ordered that action in so many
+words** ("commit", "push", "commit and push"). This is the most important rule in this project and it
+overrides every other instruction, flow, gate and habit.
+
+- Words like "go", "deploy", "finish the task", "ship it", "do everything" or "close the ticket" are
+  **not** an order to commit or push. If an action seems to need a commit or a push, stop, say exactly
+  what you would run, and wait.
+- An order covers only the action named, only once. A commit order is not a push order, and an order
+  in one turn is not an order for the next commit.
+- Pushing to `main` deploys to Railway `test`.
+
+The same applies to every other change of git state. Do it only when the user explicitly asks for that
+specific action:
+
+- creating, switching, renaming or deleting a **branch**
+- staging with the intent to commit, amending, merging, rebasing, opening a pull request
+- `reset`, `revert`, `stash`, `checkout -- <file>`, or anything else that discards work
+
+What to do instead: finish the work, leave it in the working tree, and **say what you would run**.
+
+---
+
 ## Instructions
 - **SDLC flow:** `.claude/instructions/sdlc-flow.md` — phases, phase gates, output files. Mandatory.
 - **Code style:** `.claude/instructions/code-style.md`
@@ -20,7 +44,8 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
 - Database: MongoDB 7, single-node replica set `rs0` (transactions), `MongoTemplate` only, no repositories.
   `api` gets `MONGODB_URI` (private network, `replicaSet=rs0&authSource=admin`); no default, a missing
   variable fails the start. Collections and indexes are created at startup (`mongo/MongoIndexes`).
-  Locally and in tests an embedded `mongod` (flapdoodle, **test scope only**) replaces it.
+  Locally and in tests an embedded `mongod` (flapdoodle, **test scope only**) replaces it. Setup, Railway, querying,
+  traps: `.claude/docs/mongodb.md`
 - Auth: two tiers. Builders/admins sign in through Auth0 (SPA + PKCE, API is a JWT resource server,
   roles from a token claim). Everyone else signs in with a shared password (`GUEST_PASSWORD`) and gets
   an API-issued guest token (1 day). Decisions, Auth0 setup, gotchas: `.claude/docs/auth.md`
@@ -30,25 +55,8 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
 - All tasks are in `.claude/docs`, one folder per ticket: `.claude/docs/SHC-{number}-{short-name}/`
 - Finished tickets are **closed** (ask first): knowledge compacted into project `.md` files, the ticket
   folder removed, a short entry added to `.claude/project-log.md` — see "Closing the ticket" in the SDLC flow
-- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md`, e.g. `auth.md`
+- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `mongodb.md`
 - Ticket naming pattern: `SHC-{number}` (four digits, e.g. `SHC-0001`)
-
-## MANDATORY — Never change git state unless asked
-
-**Do not touch the repository's git state unless the user has explicitly asked for that specific
-action.** This covers, at minimum:
-
-- creating, switching, renaming or deleting a **branch**
-- **committing**, amending, or staging with the intent to commit
-- **pushing**, opening a pull request, merging, rebasing
-- `reset`, `revert`, `stash`, `checkout -- <file>`, or anything else that discards work
-
-"The change is finished" is not permission to commit it. Approval for one action is not approval for
-the next one — each is asked for separately. Pushing to `main` deploys to Railway.
-
-What to do instead: finish the work, leave it in the working tree, and **say what you would run**.
-
----
 
 ## MANDATORY — Ticket-based implementation rule
 
