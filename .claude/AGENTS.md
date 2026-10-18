@@ -15,16 +15,22 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
 - Backend (repo root): Java 21, Spring Boot 3.4, Maven
 - Frontend (`frontend/`): React 18 + Vite + TypeScript, react-router, TanStack Query; served by nginx
 - Hosting: Railway project `shitcloud`, environment `test`, two services built from `main`
-  (`api` from `/`, `frontend` from `/frontend`). Settings live in the Railway service config —
+  (`api` from `/`, `frontend` from `/frontend`) plus `Mongo Single Replica` (template, `mongo:7`). Settings live in the Railway service config —
   config-as-code `railway.json` is deprecated there.
+- Database: MongoDB 7, single-node replica set `rs0` (transactions), `MongoTemplate` only, no repositories.
+  `api` gets `MONGODB_URI` (private network, `replicaSet=rs0&authSource=admin`); no default, a missing
+  variable fails the start. Collections and indexes are created at startup (`mongo/MongoIndexes`).
+  Locally and in tests an embedded `mongod` (flapdoodle, **test scope only**) replaces it.
 - Auth: two tiers. Builders/admins sign in through Auth0 (SPA + PKCE, API is a JWT resource server,
   roles from a token claim). Everyone else signs in with a shared password (`GUEST_PASSWORD`) and gets
-  an API-issued guest token (1 day). Setup steps: `.claude/docs/SHC-0001-auth0-login/solution-design.md` §3
-- Planned (see roadmap): MongoDB single-node replica set, Spring AI + Claude
+  an API-issued guest token (1 day). Decisions, Auth0 setup, gotchas: `.claude/docs/auth.md`
+- Planned (see roadmap): Spring AI + Claude
 
 ## Tasks
 - All tasks are in `.claude/docs`, one folder per ticket: `.claude/docs/SHC-{number}-{short-name}/`
-- Finished tickets get a `-DONE` suffix and move to `.claude/docs/archived/`
+- Finished tickets are **closed** (ask first): knowledge compacted into project `.md` files, the ticket
+  folder removed, a short entry added to `.claude/project-log.md` — see "Closing the ticket" in the SDLC flow
+- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md`, e.g. `auth.md`
 - Ticket naming pattern: `SHC-{number}` (four digits, e.g. `SHC-0001`)
 
 ## MANDATORY — Never change git state unless asked
@@ -64,6 +70,12 @@ npm run dev                                        # backend :8080 (dev profile)
 Locally the `dev` profile enables guest sign-in with the password `dev`. Builder sign-in needs
 `VITE_AUTH0_CLIENT_ID` in `frontend/.env.local`.
 
+The API runs through `DevApplication` (test classpath, `mvn spring-boot:test-run`), which starts an
+embedded `mongod` replica set — nothing to install; the first run downloads it (~100 MB, cached in
+`~/.embedmongo`). Its data is gone after every restart and the `dev` profile re-seeds the sample apps.
+If the API is killed hard, an orphaned `mongod.exe` may stay behind; it holds a random port, so it only
+costs memory.
+
 ## Testing
 
 ```
@@ -80,10 +92,12 @@ code and report findings. Compiling (`mvn -q compile`) and typechecking the fron
 src/main/java/com/drzewiecki/shitcloud/
   Application.java
   controller/      AppController, ChatController, MeController, GuestLoginController
-  model/           request/response records
+  model/           request/response records; Mongo documents AppRecord (_apps), AppVersion (_app_versions)
   security/        SecurityConfig (two token issuers, CORS), AuthProperties, converters, GuestTokenService,
                    LoginAttemptLimiter, AuthenticationUtils.currentUser()
-  service/         AppStore (in-memory, until MongoDB), MockChatService, GuestLoginService
+  mongo/           MongoConfig (transaction manager), MongoCollections (names), MongoIndexes (startup)
+  service/         AppRegistry (_apps + _app_versions), SampleAppSeeder (dev only), AppsProperties,
+                   MockChatService, GuestLoginService
 src/main/resources/
   application.properties, application-dev.properties
   sample-apps/     seed HTML apps for the mockup
@@ -95,7 +109,7 @@ frontend/src/
   styles/          tokens.css (colours, light + dark), app.css
 ```
 
-## API (current — in-memory data)
+## API
 
 Every endpoint requires `Authorization: Bearer <token>` (Auth0 or guest) unless marked public.
 
@@ -105,7 +119,7 @@ Every endpoint requires `Authorization: Bearer <token>` (Auth0 or guest) unless 
 | GET  | `/api/me` | signed in | Caller: `{id, displayName, groups, builder, admin, guest}` |
 | GET  | `/api/apps` | signed in | List apps, most recently used first |
 | GET  | `/api/apps/{slug}` | signed in | App + HTML; marks it used, un-archives |
-| POST | `/api/apps` | builder | Deploy `{name, description?, html}`; same name → new version; owner = caller id |
+| POST | `/api/apps` | builder | Deploy `{name, description?, html}`; same name → new version (kept 90 days in `_app_versions`); owner = creator, `updatedBy` = caller; 413 over 5 MB, 409 concurrent deploy |
 | POST | `/api/chat` | builder | Mock chat reply + draft HTML |
 
 ## Non-negotiables (from the handoff — never trade these away for convenience)

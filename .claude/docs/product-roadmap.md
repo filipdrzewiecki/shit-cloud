@@ -1,7 +1,8 @@
 # ShitCloud — Product Roadmap
 
 Ticket-level plan derived from `shitcloud-handoff.md` §9 (delivery phases). Each ticket runs the full
-SDLC flow (`.claude/instructions/sdlc-flow.md`) in `.claude/docs/SHC-XXXX-<name>/`.
+SDLC flow (`.claude/instructions/sdlc-flow.md`) in `.claude/docs/SHC-XXXX-<name>/`. Closed tickets are
+logged in `.claude/project-log.md`.
 
 Ordering rule: every ticket ends **deployed on Railway `test`** (baby steps — each one is a usable
 increment, never a half-built layer). Tickets are re-ordered or split freely; the "done when"
@@ -22,7 +23,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 
 **Done when:** a hand-written presence calendar works for two logged-in users (handoff §9.1).
 
-- [~] **SHC-0001 — Auth0 login + roles.** SPA login (PKCE), API as JWT resource server, user /
+- [x] **SHC-0001 — Auth0 login + roles.** SPA login (PKCE), API as JWT resource server, user /
   builder / admin roles from a token claim, `/api/me` from the token, deploy restricted to builders.
 - [ ] **SHC-0002 — MongoDB + persisted app registry.** Mongo on Railway as single-node replica set
   (`rs0`), `MongoTemplate`, `_apps` + `_app_versions` (TTL) replace the in-memory `AppStore`;
@@ -85,7 +86,7 @@ HTML with CDN libs + localStorage is imported and works.
 | Question | Decided in |
 |---|---|
 | Railway wildcard custom domains? Test fallback for per-app origins | SHC-0003 |
-| AD flavour (ADFS vs Entra ID) | Phase 5 — roles claim kept configurable in SHC-0001 |
+| AD flavour (ADFS vs Entra ID) | Phase 5 — roles claim kept configurable (`.claude/docs/auth.md`) |
 | Does the company run MongoDB on-prem? | Phase 5 |
 | React chat library + streaming protocol | SHC-0006 |
 | Library mirror contents | SHC-0003 (minimal), SHC-0016 (full) |

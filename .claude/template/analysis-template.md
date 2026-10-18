@@ -10,7 +10,7 @@
 | **Key classes**     | `EntryController`                                                        |
 | **Related classes** | `EntryService`, `PersonController`                                       |
 | **Custom field**    | Whatever value you think is relevant                                     |
-| **Wiki pages**      | [Page Title](.wiki/page.md), [Another Page](.wiki/another-page.md)       |
+| **References**      | `.claude/docs/<topic>.md`, `.claude/project-log.md`                      |
 
 ---
 

@@ -42,12 +42,15 @@ Phase 3 — Implementation
 Phase 4 — Tests
     └─ Output: test names appended to implementation.md
 
-Phase 5 — Documentation (optional)
-    └─ Output: wiki pages in .wiki/
-   
-Phase 6 — Frontend implementation instruction (optional)
-    └─ Output: {ticket-number}-frontend-instruction.md
+Close — ask the user first, always
+    └─ Output: knowledge compacted into project .md files, ticket folder removed, entry in .claude/project-log.md
 ```
+
+**Frontend is always in scope.** The GUI lives in this repo, so Phase 2 plans backend *and* frontend tasks
+and Phase 3 implements both. There is no separate frontend-instruction phase.
+
+**Documentation happens when closing.** There is no separate wiki phase: everything worth keeping is
+written into the project's `.md` files as part of closing the ticket.
 
 ---
 
@@ -55,7 +58,7 @@ Phase 6 — Frontend implementation instruction (optional)
 
 ### Single-agent mode (Swiss Army Knife)
 
-One agent handles all 4 phases sequentially, stopping at each phase gate for user confirmation.
+One agent handles all 4 phases and the close sequentially, stopping at each phase gate for user confirmation.
 
 ### Multi-agent mode (specialized agents)
 
@@ -82,7 +85,7 @@ In multi-agent mode, each agent:
 **Activities:**
 - Read task/ticket description and related context
 - Identify unknowns and clarify requirements
-- Check wiki (`.wiki/`) for domain context
+- Check `.claude/AGENTS.md`, `.claude/project-log.md` and the topic references in `.claude/docs/` for context
 
 **Output — `analysis.md`:**
 - **MANDATORY:** Read `.claude/template/analysis-template.md` BEFORE writing anything. Copy the template structure exactly — do not invent your own structure.
@@ -143,8 +146,7 @@ checkbox is only checked once every task under it is done):
     - ...
     - [ ] Task 35 — `mcp/src/tools/dietLog.ts`
 - [ ] Phase 4 — Tests
-- [ ] Phase 5 — Wiki docs
-- [ ] Phase 6 — Frontend Implementation
+- [ ] Close ticket
 ```
 
 `solution-design.md` §5 mirrors the same grouping with `### Story N — Name` headings, each followed by its
@@ -182,32 +184,23 @@ checkbox is only checked once every task under it is done):
 
 ---
 
-### Phase 5 — Wiki Documentation (optional)
+### Closing the ticket (mandatory question)
 
-**Goal:** Update existing documentation or create new wiki pages if the feature introduces new concepts or changes existing ones.
+**Goal:** Leave behind only what future work needs, not a pile of phase documents.
 
-**Activities:**
-- Write or update files
-- Only when it's meaningful and adds value
-- **IMPORTANT** ask the user whether he wishes this to be documented
+**When:** after Phase 4 is done, **always ask the user whether to close the ticket**.
+Never close one without asking, and never leave the question out.
 
-**Output:** documents added to `.wiki/`
-
----
-
-### Phase 6 — Frontend implementation (optional)
-
-**Goal:** Create instructions for executor agent to implement changes in frontend project
-
-**Activities:**
-- Include what has changed in the api contract
-- Describe what's new
-- Describe how to use it
-- Include any relevant details for frontend implementation
-- If you have that information - include details how user want's this to be implemented visually
-- **IMPORTANT** ask the user whether he wishes this to be documented
-
-**Output:** {ticket-number}-frontend-instruction.md in `.claude/docs/`
+**Closing means:**
+1. **Compact** everything worth keeping into the project's `.md` files: decisions and their reasons,
+   manual setup steps, gotchas, trade-offs, conventions. Put each item where a future agent will look
+   (`.claude/AGENTS.md`, an existing or new topic reference in `.claude/docs/<topic>.md`, or
+   `.claude/docs/product-roadmap.md`). Leave out what the code or git history already shows.
+2. **Remove** the ticket folder `.claude/docs/{ticket-number}-{short-description}/` with all its files.
+   Update any links that pointed into it.
+3. **Log** the ticket in `.claude/project-log.md`: a few bullet points on what was delivered, newest
+   entry first, plus pointers to the files from step 1.
+4. Mark the ticket `[x]` in `.claude/docs/product-roadmap.md`.
 
 ---
 
@@ -233,8 +226,7 @@ checkbox is only checked once every task under it is done):
     - [ ] Task 2 — [Description]
     - [ ] Task 3 — [Description]
 - [ ] Phase 4 — Tests
-- [ ] Phase 5 — Wiki docs
-- [ ] Phase 6 — Frontend Implementation
+- [ ] Close ticket
 
 ➡️ Ready to start **{Phase}/{Task} [N+1] — [Next Name]**?
 Reply **go** to continue, or provide feedback/changes first.
@@ -255,8 +247,8 @@ Reply **go** to continue, or provide feedback/changes first.
 - A single completed task IS a resolved unit — stop, always
 - Do NOT write anything after the gate block
 - Do NOT start the next phase in the same response
-- **NEVER silently skip an optional phase (5 or 6)** — you MUST explicitly ask the user whether they want it. Assuming "not requested" and proceeding without asking is a violation.
-- **Every phase — including skipped ones — MUST appear in the roadmap.** If skipped, mark it `[~]`. A phase that is neither `[x]` nor `[~]` nor `[ ]` in the roadmap is a missing entry and a flow violation.
+- **NEVER close a ticket without asking** — after Phase 4, ask whether to close it.
+- **Every phase and the close MUST appear in the roadmap.** If skipped, mark it `[~]`. A phase that is neither `[x]` nor `[~]` nor `[ ]` in the roadmap is a missing entry and a flow violation.
 
 ---
 
@@ -290,8 +282,7 @@ All output documents go under `.claude/docs/`:
     - [ ] Task 2 — [Description]
     - [ ] Task 3 — [Description]
 - [ ] Phase 4 — Tests
-- [ ] Phase 5 — Wiki docs
-- [ ] Phase 6 — Frontend Implementation
+- [ ] Close ticket
 
 ➡️ Do these tasks look right? Reply **go** to start Task 1, or push back first.
 ```
@@ -307,8 +298,7 @@ All output documents go under `.claude/docs/`:
 - [ ] Phase 2 — Solution Design
 - [ ] Phase 3 — Implementation
 - [ ] Phase 4 — Tests
-- [ ] Phase 5 — Wiki docs
-- [ ] Phase 6 — Frontend Implementation
+- [ ] Close ticket
 
 ➡️ Ready to start **Phase 2 — Solution Design**?
 Reply **go** to continue, or provide feedback/changes first.
@@ -329,8 +319,7 @@ Reply **go** to continue, or provide feedback/changes first.
     - [ ] Task 3 — Update service logic
     - [ ] Task 4 — Update controller DTO
 - [ ] Phase 4 — Tests
-- [ ] Phase 5 — Wiki docs
-- [] Phase 6 — Frontend Implementation
+- [ ] Close ticket
 
 ➡️ Ready to start **Task 3 — Update service logic**?
 Reply **go** to continue, or provide feedback/changes first.
@@ -339,7 +328,7 @@ Reply **go** to continue, or provide feedback/changes first.
 ---
 
 
-### Skipping optional phases
+### After Phase 4 (ask to close)
 
 ```
 ---
@@ -352,16 +341,14 @@ Reply **go** to continue, or provide feedback/changes first.
     - [x] Task 1 — Add entity field + migration
     - [x] Task 2 — Add repository method
     - [x] Task 3 — Update service logic
-    - [x] Task 4 — Update controller DTO
+    - [x] Task 4 — Update controller DTO + frontend screen
 - [x] Phase 4 — Tests
     - added: `MeetingProcessConfigControllerIT#shouldReturnConfig`
     - modified: `AttendanceServiceTest#updateParticipantAttendance_attended_false`
-- [~] Phase 5 — Wiki docs (skipped)
-- [ ] Phase 6 — Frontend Implementation
+- [ ] Close ticket
 
-✅ Ready to start **Phase 6 — Frontend Implementation**?
-Reply **go** to continue, **skip** to skip phase, or provide feedback/changes first.
-
+➡️ Close the ticket (compact docs, remove the folder, log it)?
+Reply **close** to close it, or provide feedback/changes first.
 ```
 
 ---

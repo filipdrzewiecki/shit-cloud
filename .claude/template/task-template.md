@@ -29,7 +29,6 @@ This is the basic description of the feature or component.
 3. Connect them
 
 # Optional items
-- [ ] wikipedia
 - [ ] Acceptance criteria
 - [ ] Tasks/Subtasks
 - [ ] Test scenarios
