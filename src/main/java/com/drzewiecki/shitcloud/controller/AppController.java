@@ -4,7 +4,7 @@ import com.drzewiecki.shitcloud.model.AppDetail;
 import com.drzewiecki.shitcloud.model.AppSummary;
 import com.drzewiecki.shitcloud.model.DeployRequest;
 import com.drzewiecki.shitcloud.security.AuthenticationUtils;
-import com.drzewiecki.shitcloud.service.AppStore;
+import com.drzewiecki.shitcloud.service.AppRegistry;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,27 +22,27 @@ import java.util.List;
 @PreAuthorize("isAuthenticated()")
 public class AppController {
 
-    private final AppStore appStore;
+    private final AppRegistry appRegistry;
 
-    public AppController(AppStore appStore) {
-        this.appStore = appStore;
+    public AppController(AppRegistry appRegistry) {
+        this.appRegistry = appRegistry;
     }
 
     @GetMapping
     public List<AppSummary> list() {
-        return appStore.list();
+        return appRegistry.list();
     }
 
     @GetMapping("/{slug}")
     public AppDetail open(@PathVariable String slug) {
-        return appStore.open(slug);
+        return appRegistry.open(slug);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('BUILDER')")
     public AppSummary deploy(@RequestBody DeployRequest request) {
-        String owner = AuthenticationUtils.currentUser().id();
-        return appStore.deploy(request, owner);
+        String caller = AuthenticationUtils.currentUser().id();
+        return appRegistry.deploy(request, caller);
     }
 }

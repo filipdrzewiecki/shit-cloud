@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class MockChatService {
 
-    private final String draftHtml = AppStore.readSample("draft");
+    private final String draftHtml = SampleAppSeeder.readSample("draft");
 
     public ChatResponse reply(ChatRequest request) {
         String asked = request.messages() == null || request.messages().isEmpty()

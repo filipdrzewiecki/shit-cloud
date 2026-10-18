@@ -1,6 +1,19 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ApiError } from '../api/client'
 import { useDeploy } from '../api/queries'
+
+function deployError(error: Error): string {
+  if (!(error instanceof ApiError)) return 'Could not reach ShitCloud. Try again in a moment.'
+  switch (error.status) {
+    case 413:
+      return 'This app is too large to deploy (max 5 MB).'
+    case 409:
+      return 'Someone else is deploying this app right now. Try again.'
+    default:
+      return error.message
+  }
+}
 
 /**
  * Name + Deploy, shared by the build and upload screens. Deploy sits outside
@@ -22,7 +35,7 @@ export function DeployBar({ html, initialName = '' }: { html: string | null; ini
       <button className="primary" disabled={!html || !name.trim() || deploy.isPending} onClick={submit}>
         {deploy.isPending ? 'Deploying…' : 'Deploy'}
       </button>
-      {deploy.isError && <span className="error-text">{deploy.error.message}</span>}
+      {deploy.isError && <span className="error-text">{deployError(deploy.error)}</span>}
     </div>
   )
 }

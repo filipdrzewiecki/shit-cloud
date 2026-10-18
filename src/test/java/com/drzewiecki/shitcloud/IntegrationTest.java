@@ -1,11 +1,15 @@
 package com.drzewiecki.shitcloud;
 
+import com.drzewiecki.shitcloud.mongo.MongoCollections;
 import com.drzewiecki.shitcloud.security.AuthProperties;
 import com.drzewiecki.shitcloud.security.GuestTokenService;
 import com.drzewiecki.shitcloud.security.IdpUserConverter;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
@@ -16,7 +20,8 @@ import java.util.List;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 
 /**
- * Full application context with MockMvc. Guest sign-in is enabled with a test password.
+ * Full application context with MockMvc on an embedded mongod (see {@code EmbeddedMongoConfig}). Guest
+ * sign-in is enabled with a test password. Every test starts with an empty registry; the indexes stay.
  *
  * <p>Two ways to act as a caller:
  * <ul>
@@ -41,6 +46,9 @@ public abstract class IntegrationTest {
     protected MockMvc mvc;
 
     @Autowired
+    protected MongoTemplate mongo;
+
+    @Autowired
     private AuthProperties authProperties;
 
     @Autowired
@@ -48,6 +56,12 @@ public abstract class IntegrationTest {
 
     @Autowired
     private GuestTokenService guestTokenService;
+
+    @BeforeEach
+    void emptyTheRegistry() {
+        mongo.remove(new Query(), MongoCollections.APPS);
+        mongo.remove(new Query(), MongoCollections.APP_VERSIONS);
+    }
 
     protected RequestPostProcessor builder() {
         return idpUser(BUILDER_EMAIL, "Builder", authProperties.buildersGroup());
