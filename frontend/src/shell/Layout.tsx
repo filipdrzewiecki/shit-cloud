@@ -34,6 +34,7 @@ export function Layout() {
           </NavLink>
           {me.data?.builder && <NavLink to="/build">Build with AI</NavLink>}
           {me.data?.builder && <NavLink to="/upload">Upload</NavLink>}
+          {me.data?.builder && <NavLink to="/guide">Guide for your AI</NavLink>}
         </nav>
         <div className="me">
           {me.data && (

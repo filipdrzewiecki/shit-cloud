@@ -37,7 +37,9 @@ await shitcloud.db.remove('days', 'filip_2026-10-20');              // false whe
 - Errors are `Error`s with `.code`: `BAD_REQUEST`, `NO_SUCH_APP`, `VERSION_CONFLICT`, `CONFLICT`, `TOO_LARGE`,
   `SIGNED_OUT`, `UNAVAILABLE`, `TIMEOUT` (15 s), `NOT_IN_SHITCLOUD`.
 - No realtime: apps poll (the `lunch-poll` dev sample polls every 5 s).
-- This section is the seed of the SDK documentation for the build-chat system prompt (SHC-0009).
+- The full app rules for AI assistants live in `frontend/src/guide/builder-guide.md` (GUI page `/guide`, builders
+  copy it into their own assistant); it is also the seed of the build-chat system prompt (SHC-0009). Keep it in
+  step with the SDK, CSP, mirror and limits.
 
 ## Storage
 

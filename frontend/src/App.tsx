@@ -8,6 +8,7 @@ import { clearGuest, useGuestSession } from './auth/guestSession'
 import { signInPath } from './auth/returnTo'
 import { AppHostPage } from './pages/AppHostPage'
 import { AppListPage } from './pages/AppListPage'
+import { BuilderGuidePage } from './pages/BuilderGuidePage'
 import { BuildPage } from './pages/BuildPage'
 import { SignInPage } from './pages/SignInPage'
 import { UploadPage } from './pages/UploadPage'
@@ -75,6 +76,14 @@ export function App() {
           element={
             <BuildersOnly>
               <UploadPage />
+            </BuildersOnly>
+          }
+        />
+        <Route
+          path="guide"
+          element={
+            <BuildersOnly>
+              <BuilderGuidePage />
             </BuildersOnly>
           }
         />

@@ -483,3 +483,17 @@ button:disabled {
 .link-button:hover {
   color: var(--text);
 }
+
+/* The builder guide: shown as the Markdown it is copied as, so what you read is what the assistant gets. */
+.guide {
+  margin: 0;
+  padding: 20px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -132,7 +132,8 @@ src/main/resources/
 frontend/src/
   api/             client.ts (only place an absolute URL is built and a token attached), queries.ts, types.ts
   auth/            guestSession.ts (guest token in localStorage), returnTo.ts
-  pages/           SignInPage, AppListPage, AppHostPage, BuildPage, UploadPage, DeployBar
+  pages/           SignInPage, AppListPage, AppHostPage, BuildPage, UploadPage, DeployBar, BuilderGuidePage
+  guide/           builder-guide.md: the app rules written for an AI assistant (shown at /guide, copied by builders)
   shell/           Layout, AppFrame (deployed app: apps-origin src + allow-same-origin), appBridge.ts +
                    useAppBridge (answers the app's SDK calls; accepts only its own frame + the apps origin),
                    DraftFrame (Build/Upload preview: srcdoc, opaque origin)
@@ -188,3 +189,5 @@ HTML with the SDK injected, CSP (`connect-src 'none'`, `frame-ancestors` = `cors
 - **Never put ticket numbers (e.g. `SHC-0001`) in code, comments, Javadoc or test names.** The ticket
   lives in `.claude/docs`. Comments explain the *why* and stand on their own.
 - Platform UI is English. Generated/sample apps use Polish labels.
+- **`frontend/src/guide/builder-guide.md` is a contract with outside AI assistants.** Whenever the SDK, the app
+  CSP, the library mirror or Data API limits/operators change, update it in the same change.
