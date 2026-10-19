@@ -64,8 +64,11 @@ export function SignInPage() {
     <main className="sign-in">
       <div className="sign-in-card">
         <h1>
-          <span aria-hidden>☁️</span> ShitCloud
+          <span aria-hidden>☁️</span> S.H.I.T. Cloud
         </h1>
+        <p className="acronym" aria-label="Simple Handy Internal Tools">
+          <b>S</b>imple <b>H</b>andy <b>I</b>nternal <b>T</b>ools
+        </p>
         <p className="muted">Small tools your team built. Sign in with the team password to use them.</p>
 
         <form onSubmit={submit} className="sign-in-form">

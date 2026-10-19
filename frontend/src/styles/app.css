@@ -443,6 +443,19 @@ button:disabled {
   margin: 0;
 }
 
+/* The name spelled out under the logo: S.H.I.T. = Simple Handy Internal Tools. */
+.sign-in-card .acronym {
+  margin-top: -8px;
+  color: var(--muted);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
+.sign-in-card .acronym b {
+  color: var(--accent);
+  font-weight: 800;
+}
+
 .sign-in-card p {
   margin: 0;
 }

@@ -30,7 +30,8 @@ What to do instead: finish the work, leave it in the working tree, and **say wha
 - **Product plan:** `shitcloud-handoff.md` (vision, architecture, data model — the source of truth for
   *what* we build) and `.claude/docs/product-roadmap.md` (the ticket list — *in what order*).
 
-Working name **ShitCloud**: an internal company platform for throwaway mini-apps ("views") built in
+Working name **ShitCloud**, shown as **S.H.I.T. Cloud** = *Simple Handy Internal Tools* (GUI brand, sign-in page,
+app list; the spoken name in messages stays "ShitCloud"): an internal company platform for throwaway mini-apps ("views") built in
 minutes through an AI chat or uploaded as HTML. Apps are disposable, data is durable.
 
 ## Stack

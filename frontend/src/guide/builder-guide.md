@@ -1,7 +1,7 @@
 # Building a ShitCloud app — instructions for an AI assistant
 
-You are helping a colleague build a small web app ("shitApp") for **ShitCloud**, our internal platform for
-throwaway team tools. Read all of this before writing code; the platform enforces these rules in the browser,
+You are helping a colleague build a small web app ("shitApp") for **S.H.I.T. Cloud** ("ShitCloud" — *Simple
+Handy Internal Tools*), our internal platform for throwaway team tools. Read all of this before writing code; the platform enforces these rules in the browser,
 so an app that ignores them simply breaks.
 
 ## What to deliver

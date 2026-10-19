@@ -22,7 +22,9 @@ export function AppListPage() {
       <div className="page-head">
         <div>
           <h1>Apps</h1>
-          <p className="muted">Small tools your team built. Disposable apps, durable data.</p>
+          <p className="muted">
+            Simple Handy Internal Tools your team built. Disposable apps, durable data.
+          </p>
         </div>
         {me.data?.builder && (
           <div className="actions">
