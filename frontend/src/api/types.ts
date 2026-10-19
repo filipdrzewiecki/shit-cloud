@@ -49,3 +49,20 @@ export interface ChatResponse {
   reply: ChatMessage
   draftHtml: string | null
 }
+
+/** A document of an app, as the Data API returns it. `id` is the app's own id. */
+export interface DocView {
+  id: string
+  data: Record<string, unknown>
+  version: number
+  createdBy: string
+  createdAt: string
+  updatedBy: string
+  updatedAt: string
+}
+
+export interface DataQuery {
+  filter?: Record<string, unknown>
+  sort?: Record<string, number>
+  limit?: number
+}

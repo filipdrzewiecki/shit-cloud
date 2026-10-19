@@ -21,7 +21,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 /**
  * Full application context with MockMvc on an embedded mongod (see {@code EmbeddedMongoConfig}). Guest
- * sign-in is enabled with a test password, apps are in path mode. Every test starts with an empty registry; the indexes stay.
+ * sign-in is enabled with a test password, apps are in path mode. Every test starts with an empty registry
+ * and no app data; the indexes stay.
  *
  * <p>Two ways to act as a caller:
  * <ul>
@@ -65,6 +66,8 @@ public abstract class IntegrationTest {
     void emptyTheRegistry() {
         mongo.remove(new Query(), MongoCollections.APPS);
         mongo.remove(new Query(), MongoCollections.APP_VERSIONS);
+        mongo.remove(new Query(), MongoCollections.DOCS);
+        mongo.remove(new Query(), MongoCollections.HISTORY);
     }
 
     protected RequestPostProcessor builder() {

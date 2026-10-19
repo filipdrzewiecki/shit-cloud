@@ -12,8 +12,11 @@ import type {
   Me,
 } from './types'
 
+/** Shared with the app bridge, which answers an app's `me()` from the same cache. */
+export const meQuery = { queryKey: ['me'], queryFn: () => api.get<Me>('/api/me'), staleTime: Infinity }
+
 export function useMe() {
-  return useQuery({ queryKey: ['me'], queryFn: () => api.get<Me>('/api/me'), staleTime: Infinity })
+  return useQuery(meQuery)
 }
 
 export function useApps() {

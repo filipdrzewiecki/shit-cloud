@@ -2,6 +2,19 @@
 
 What each closed ticket delivered, newest first. Durable details live in the files each entry points to.
 
+## SHC-0004 — Data API + bridge (closed 2026-10-19)
+
+- Apps have shared, durable data: `docs` (space = app slug, app fields under `data`) with every replaced or deleted
+  state in `_history`, written in the same transaction; version-conditional writes, retried on collision.
+- Data API (`/api/data/{space}/{collection}`: query, set, add, remove) for everyone signed in, guests included;
+  Mongo-style filters rebuilt from an operator whitelist; `{code, message}` errors; size and name limits.
+- SDK v2 (`shitcloud.me()`, `db.find/set/add/remove`) talks to a bridge in the host page that accepts only its own
+  frame on the apps origin and takes the space from the route. Last write wins unless `expectedVersion` is given.
+- Vitest added to the frontend (bridge + SDK); the dev sample `lunch-poll` votes through the SDK.
+- 89 unit + 104 integration + 31 frontend tests green. Closed on the user's order before the live two-user check on
+  `test`; local checks were done with curl (the Chrome extension did not respond).
+- Reference: `.claude/docs/data-api.md`.
+
 ## SHC-0003 — App serving on its own origin (closed 2026-10-19)
 
 - Apps run on their own origin: the API's second port (8081) with its own Railway domain

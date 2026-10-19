@@ -32,7 +32,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
   (fallback: one shared apps domain on test). Serve app HTML from the apps origin with the SDK injected
   as the first `<script>`, CSP `connect-src 'none'`, sandbox incl. `allow-same-origin`. Minimal local
   library mirror (Alpine, Tailwind, Chart.js) so CSP doesn't break apps.
-- [ ] **SHC-0004 — Data API + bridge.** `docs` collection, whitelist filter → `Criteria`, upsert /
+- [x] **SHC-0004 — Data API + bridge.** `docs` collection, whitelist filter → `Criteria`, upsert /
   delete with `_history` in the same transaction, optimistic `version`; host-page `postMessage`
   bridge with origin/source checks; `window.shitcloud.db` + `me()` in the SDK.
 - [ ] **SHC-0005 — Presence calendar end-to-end.** Hand-written calendar on the real SDK, two users,

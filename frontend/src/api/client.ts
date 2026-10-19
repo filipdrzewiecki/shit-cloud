@@ -9,10 +9,13 @@ const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export class ApiError extends Error {
   readonly status: number
+  /** Set by endpoints that explain their errors (the Data API): a stable code an app can branch on. */
+  readonly code?: string
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string) {
     super(message)
     this.status = status
+    this.code = code
   }
 }
 
@@ -86,12 +89,14 @@ async function request<T>(method: Method, path: string, body?: unknown, options:
   if (!response.ok) {
     // Spring's default error body carries a short `error`; the reason passed to
     // ResponseStatusException is not exposed by default, so the status is the
-    // most reliable thing to show.
+    // most reliable thing to show. The Data API answers {code, message} instead.
     let detail = response.statusText
     try {
-      const json = (await response.json()) as { error?: string }
+      const json = (await response.json()) as { error?: string; code?: string; message?: string }
+      if (json.code && json.message) throw new ApiError(response.status, json.message, json.code)
       if (json.error) detail = json.error
-    } catch {
+    } catch (e) {
+      if (e instanceof ApiError) throw e
       // Not JSON — keep the status text.
     }
     throw new ApiError(response.status, `${response.status} ${detail}`)
@@ -103,4 +108,6 @@ async function request<T>(method: Method, path: string, body?: unknown, options:
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body: unknown, options?: RequestOptions) => request<T>('POST', path, body, options),
+  put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
+  delete: <T>(path: string) => request<T>('DELETE', path),
 }

@@ -1,3 +1,5 @@
+import { forwardRef } from 'react'
+
 /**
  * Runs a deployed app from its own origin (the API's apps port), never from
  * this one.
@@ -11,14 +13,21 @@
  * would run as the platform and could read the reader's credentials in
  * localStorage (the Auth0 refresh token and the guest token). Drafts that have
  * no URL yet go through DraftFrame.
+ *
+ * The ref reaches the iframe so the host page's bridge can tell this app's
+ * messages from any other window's (see useAppBridge).
  */
-export function AppFrame({ src, title }: { src: string; title: string }) {
+export const AppFrame = forwardRef<HTMLIFrameElement, { src: string; title: string }>(function AppFrame(
+  { src, title },
+  ref,
+) {
   return (
     <iframe
+      ref={ref}
       className="app-frame"
       title={title}
       src={src}
       sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-downloads"
     />
   )
-}
+})

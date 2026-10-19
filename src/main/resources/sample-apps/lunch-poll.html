@@ -9,28 +9,64 @@
   .option { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
   .bar { flex: 1; background: #eaeef2; border-radius: 4px; height: 24px; position: relative; }
   .fill { background: #fd8c73; height: 100%; border-radius: 4px; transition: width .2s; }
+  .mine .fill { background: #8250df; }
   .bar span { position: absolute; left: 8px; top: 3px; font-size: 13px; }
   button { padding: 4px 10px; cursor: pointer; }
+  .muted { color: #59636e; font-size: 13px; }
+  .error { color: #cf222e; }
 </style>
 </head>
 <body>
 <h1>Gdzie idziemy w piątek?</h1>
+<p class="muted" id="who"></p>
 <div id="options"></div>
+<p class="muted">Jeden głos na osobę — kliknij inną opcję, żeby zmienić zdanie.</p>
+<p class="error" id="error"></p>
 <script>
-  const votes = { 'Pizza Nonna': 5, 'Bistro Zielone': 3, 'Sushi Kaizen': 2, 'Pierogarnia': 4 };
+  // One document per person in the "votes" collection, keyed by their id: voting again replaces the vote.
+  const PLACES = ['Pizza Nonna', 'Bistro Zielone', 'Sushi Kaizen', 'Pierogarnia'];
   const el = document.getElementById('options');
+  let me = null;
+  let votes = [];
+
   function render() {
-    const max = Math.max(...Object.values(votes));
-    el.innerHTML = Object.entries(votes).map(([name, n]) => `
-      <div class="option">
-        <div class="bar"><div class="fill" style="width:${n / max * 100}%"></div><span>${name} — ${n}</span></div>
-        <button data-name="${name}">+1</button>
+    const counts = Object.fromEntries(PLACES.map(p => [p, votes.filter(v => v.place === p).length]));
+    const max = Math.max(1, ...Object.values(counts));
+    const mine = votes.find(v => v.id === me?.id)?.place;
+    el.innerHTML = PLACES.map(name => `
+      <div class="option ${name === mine ? 'mine' : ''}">
+        <div class="bar"><div class="fill" style="width:${counts[name] / max * 100}%"></div><span>${name} — ${counts[name]}</span></div>
+        <button data-name="${name}">${name === mine ? '✓' : 'Głosuj'}</button>
       </div>`).join('');
   }
-  el.addEventListener('click', e => {
-    if (e.target.dataset.name) { votes[e.target.dataset.name]++; render(); }
+
+  async function load() {
+    try {
+      votes = await shitcloud.db.find('votes');
+      document.getElementById('error').textContent = '';
+    } catch (e) {
+      document.getElementById('error').textContent = e.message;
+    }
+    render();
+  }
+
+  el.addEventListener('click', async e => {
+    const place = e.target.dataset.name;
+    if (!place || !me) return;
+    await shitcloud.db.set('votes', me.id, { place, name: me.displayName });
+    await load();
   });
-  render();
+
+  (async () => {
+    try {
+      me = await shitcloud.me();
+      document.getElementById('who').textContent = 'Głosujesz jako ' + me.displayName;
+    } catch (e) {
+      document.getElementById('error').textContent = e.message;
+    }
+    await load();
+    setInterval(load, 5000);
+  })();
 </script>
 </body>
 </html>

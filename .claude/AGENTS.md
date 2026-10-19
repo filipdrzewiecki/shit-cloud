@@ -55,13 +55,17 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
   `APPS_URL_PATTERN` (no default) places `{slug}` in the host (one origin per app, needs a wildcard domain)
   or the path (one shared apps origin — `test`). App names whose slug is `api`, `actuator` or `error` are refused.
   Details, CSP, Railway domains, gaps: `.claude/docs/app-origin.md`
+- App data: one `docs` collection (`space` = app slug, `collection`, `docId`, app fields under `data`),
+  earlier states in `_history` (same transaction, TTL 90 days). Apps reach it only through the SDK
+  (`window.shitcloud.db` / `me()`) → `postMessage` → host page bridge (`shell/appBridge.ts`) → Data API.
+  SDK, rules, limits, retries: `.claude/docs/data-api.md`
 - Planned (see roadmap): Spring AI + Claude
 
 ## Tasks
 - All tasks are in `.claude/docs`, one folder per ticket: `.claude/docs/SHC-{number}-{short-name}/`
 - Finished tickets are **closed** (ask first): knowledge compacted into project `.md` files, the ticket
   folder removed, a short entry added to `.claude/project-log.md` — see "Closing the ticket" in the SDLC flow
-- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `mongodb.md`, `app-origin.md`
+- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `mongodb.md`, `app-origin.md`, `data-api.md`
 - Ticket naming pattern: `SHC-{number}` (four digits, e.g. `SHC-0001`)
 
 ## MANDATORY — Ticket-based implementation rule
@@ -97,6 +101,7 @@ costs memory.
 ```
 mvn test            # unit tests only
 mvn verify          # unit + integration tests
+npm test --prefix frontend   # Vitest: app bridge + the injected SDK (no DOM, hand-made windows)
 ```
 
 **Never run `mvn test` or `mvn verify` autonomously.** The user runs tests themselves. Review test
@@ -107,7 +112,9 @@ code and report findings. Compiling (`mvn -q compile`) and typechecking the fron
 ```
 src/main/java/com/drzewiecki/shitcloud/
   Application.java
-  controller/      AppController, ChatController, MeController, GuestLoginController
+  controller/      AppController, ChatController, MeController, GuestLoginController, DataController
+  data/            DataService (docs + _history, transactions, retries), FilterTranslator (operator whitelist),
+                   DataProperties, records, DataException + DataExceptionHandler ({code, message} bodies)
   apps/            the apps port: AppsConnectorConfig (2nd Tomcat connector), PortFence, AppsSecurityConfig
                    (own filter chain, framing allowed), AppOrigin (url pattern), AppDocumentController (CSP),
                    SdkInjector, LibraryMirrorConfig
@@ -120,13 +127,14 @@ src/main/java/com/drzewiecki/shitcloud/
 src/main/resources/
   application.properties, application-dev.properties
   sample-apps/     seed HTML apps for the mockup
-  apps/sdk.js      inlined as the first script of every app document (window.shitcloud)
+  apps/sdk.js      inlined as the first script of every app document: window.shitcloud.me() / db.*
   apps-lib/        the library mirror served at /_lib/ + LICENSES.md (versions)
 frontend/src/
   api/             client.ts (only place an absolute URL is built and a token attached), queries.ts, types.ts
   auth/            guestSession.ts (guest token in localStorage), returnTo.ts
   pages/           SignInPage, AppListPage, AppHostPage, BuildPage, UploadPage, DeployBar
-  shell/           Layout, AppFrame (deployed app: apps-origin src + allow-same-origin),
+  shell/           Layout, AppFrame (deployed app: apps-origin src + allow-same-origin), appBridge.ts +
+                   useAppBridge (answers the app's SDK calls; accepts only its own frame + the apps origin),
                    DraftFrame (Build/Upload preview: srcdoc, opaque origin)
   styles/          tokens.css (colours, light + dark), app.css
 ```
@@ -143,6 +151,13 @@ Every endpoint requires `Authorization: Bearer <token>` (Auth0 or guest) unless 
 | GET  | `/api/apps/{slug}` | signed in | App + HTML + `frameUrl` (on the apps origin); marks it used, un-archives |
 | POST | `/api/apps` | builder | Deploy `{name, description?, html}`; same name → new version (kept 90 days in `_app_versions`); owner = creator, `updatedBy` = caller; 413 over 5 MB, 409 concurrent deploy |
 | POST | `/api/chat` | builder | Mock chat reply + draft HTML |
+| POST | `/api/data/{space}/{collection}/query` | signed in | `{filter?, sort?, limit?}` → `[DocView]`; whitelisted Mongo operators only |
+| PUT  | `/api/data/{space}/{collection}/{id}` | signed in | `{data, expectedVersion?}` → `DocView`; previous state → `_history`; last write wins unless `expectedVersion` (409 `VERSION_CONFLICT`) |
+| POST | `/api/data/{space}/{collection}` | signed in | `{data}` → 201 `DocView` with a generated id |
+| DELETE | `/api/data/{space}/{collection}/{id}` | signed in | `?expectedVersion=` → `{deleted}`; last state → `_history` |
+
+Data API errors are `{code, message}` (`BAD_REQUEST`, `NO_SUCH_APP`, `VERSION_CONFLICT`, `CONFLICT`, `TOO_LARGE`);
+`space` must be an existing app. Guests read and write too.
 
 Apps port (public, no token): `GET /{slug}/` (path mode; `/{slug}` redirects) or `GET /` (host mode) → the app's
 HTML with the SDK injected, CSP (`connect-src 'none'`, `frame-ancestors` = `cors.allowed-origins`), `no-store`.

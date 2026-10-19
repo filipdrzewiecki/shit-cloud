@@ -81,6 +81,10 @@ public class AppRegistry {
         return new AppDetail(app.summary(), app.html(), appOrigin.urlFor(slug));
     }
 
+    public boolean exists(String slug) {
+        return mongo.exists(bySlug(slug), MongoCollections.APPS);
+    }
+
     /**
      * The current HTML only, for serving the app document. Reading it is not using the app.
      */

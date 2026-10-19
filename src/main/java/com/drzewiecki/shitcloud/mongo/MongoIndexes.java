@@ -1,5 +1,6 @@
 package com.drzewiecki.shitcloud.mongo;
 
+import com.drzewiecki.shitcloud.data.DataProperties;
 import com.drzewiecki.shitcloud.service.AppsProperties;
 import jakarta.annotation.PostConstruct;
 import org.bson.Document;
@@ -26,13 +27,18 @@ public class MongoIndexes {
     static final String VERSION_TTL_INDEX = "createdAt_ttl";
     static final String APP_VERSION_INDEX = "appId_version_unique";
     static final String LAST_USED_INDEX = "lastUsedAt_desc";
+    static final String DOC_INDEX = "space_collection_docId_unique";
+    static final String HISTORY_INDEX = "space_collection_docId_version";
+    static final String HISTORY_TTL_INDEX = "changedAt_ttl";
 
     private final MongoTemplate mongo;
     private final AppsProperties properties;
+    private final DataProperties dataProperties;
 
-    public MongoIndexes(MongoTemplate mongo, AppsProperties properties) {
+    public MongoIndexes(MongoTemplate mongo, AppsProperties properties, DataProperties dataProperties) {
         this.mongo = mongo;
         this.properties = properties;
+        this.dataProperties = dataProperties;
     }
 
     @PostConstruct
@@ -45,7 +51,18 @@ public class MongoIndexes {
         mongo.indexOps(MongoCollections.APP_VERSIONS).ensureIndex(
                 new Index().on("appId", Sort.Direction.ASC).on("version", Sort.Direction.ASC)
                         .unique().named(APP_VERSION_INDEX));
-        ensureVersionTtl(properties.versionTtl());
+        ensureTtl(MongoCollections.APP_VERSIONS, "createdAt", VERSION_TTL_INDEX, properties.versionTtl());
+
+        createCollection(MongoCollections.DOCS);
+        createCollection(MongoCollections.HISTORY);
+        // Also the index every query uses: space and collection are always the first conditions.
+        mongo.indexOps(MongoCollections.DOCS).ensureIndex(
+                new Index().on("space", Sort.Direction.ASC).on("collection", Sort.Direction.ASC)
+                        .on("docId", Sort.Direction.ASC).unique().named(DOC_INDEX));
+        mongo.indexOps(MongoCollections.HISTORY).ensureIndex(
+                new Index().on("space", Sort.Direction.ASC).on("collection", Sort.Direction.ASC)
+                        .on("docId", Sort.Direction.ASC).on("version", Sort.Direction.ASC).named(HISTORY_INDEX));
+        ensureTtl(MongoCollections.HISTORY, "changedAt", HISTORY_TTL_INDEX, dataProperties.historyTtl());
     }
 
     private void createCollection(String name) {
@@ -58,21 +75,21 @@ public class MongoIndexes {
      * Creating a TTL index with a different expiry than the existing one fails, so a changed property is
      * applied to the existing index with {@code collMod} instead.
      */
-    private void ensureVersionTtl(Duration ttl) {
+    private void ensureTtl(String collection, String field, String indexName, Duration ttl) {
         long seconds = ttl.toSeconds();
-        Optional<IndexInfo> existing = mongo.indexOps(MongoCollections.APP_VERSIONS).getIndexInfo().stream()
-                .filter(index -> index.getName().equals(VERSION_TTL_INDEX))
+        Optional<IndexInfo> existing = mongo.indexOps(collection).getIndexInfo().stream()
+                .filter(index -> index.getName().equals(indexName))
                 .findFirst();
         if (existing.isEmpty()) {
-            mongo.indexOps(MongoCollections.APP_VERSIONS).ensureIndex(
-                    new Index().on("createdAt", Sort.Direction.ASC).expire(ttl).named(VERSION_TTL_INDEX));
+            mongo.indexOps(collection).ensureIndex(
+                    new Index().on(field, Sort.Direction.ASC).expire(ttl).named(indexName));
             return;
         }
         Duration current = existing.get().getExpireAfter().orElse(null);
         if (current == null || current.toSeconds() != seconds) {
-            log.info("Changing the {} TTL from {} to {}", MongoCollections.APP_VERSIONS, current, ttl);
-            Document index = new Document("name", VERSION_TTL_INDEX).append("expireAfterSeconds", seconds);
-            mongo.executeCommand(new Document("collMod", MongoCollections.APP_VERSIONS).append("index", index));
+            log.info("Changing the {} TTL from {} to {}", collection, current, ttl);
+            Document index = new Document("name", indexName).append("expireAfterSeconds", seconds);
+            mongo.executeCommand(new Document("collMod", collection).append("index", index));
         }
     }
 }
