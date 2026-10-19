@@ -54,13 +54,14 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
   `apps-lib/LICENSES.md`); `PortFence` 404s everything else on each port. It has its own Railway domain.
   `APPS_URL_PATTERN` (no default) places `{slug}` in the host (one origin per app, needs a wildcard domain)
   or the path (one shared apps origin — `test`). App names whose slug is `api`, `actuator` or `error` are refused.
+  Details, CSP, Railway domains, gaps: `.claude/docs/app-origin.md`
 - Planned (see roadmap): Spring AI + Claude
 
 ## Tasks
 - All tasks are in `.claude/docs`, one folder per ticket: `.claude/docs/SHC-{number}-{short-name}/`
 - Finished tickets are **closed** (ask first): knowledge compacted into project `.md` files, the ticket
   folder removed, a short entry added to `.claude/project-log.md` — see "Closing the ticket" in the SDLC flow
-- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `mongodb.md`
+- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `mongodb.md`, `app-origin.md`
 - Ticket naming pattern: `SHC-{number}` (four digits, e.g. `SHC-0001`)
 
 ## MANDATORY — Ticket-based implementation rule

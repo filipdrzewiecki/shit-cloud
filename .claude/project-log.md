@@ -2,6 +2,20 @@
 
 What each closed ticket delivered, newest first. Durable details live in the files each entry points to.
 
+## SHC-0003 — App serving on its own origin (closed 2026-10-19)
+
+- Apps run on their own origin: the API's second port (8081) with its own Railway domain
+  (`api-test-e5c7.up.railway.app`), fenced from the API in both directions (`PortFence`), own security chain
+  with framing allowed. `APPS_URL_PATTERN` picks a shared apps origin (`test`) or one origin per app (host mode).
+- App documents get the SDK as the first script, a CSP that blocks all network calls and lets only the GUI
+  frame them, `no-store`. Library mirror `/_lib/` with Alpine, Tailwind browser build, Chart.js.
+- GUI frames deployed apps from `frameUrl` with `allow-same-origin`; drafts stay on opaque `srcdoc` frames.
+- The local end-to-end run caught two bugs tests had missed (`/actuator` reachable on the apps port, a 500 from
+  a record projection) — slugs `api`/`actuator`/`error` are now reserved.
+- 50 unit + 80 integration tests green; verified live by the user (origin, storage, CSP blocks, framing refused,
+  libraries). Known gap: draft previews can't load `/_lib/` yet (planned with the chat package).
+- Reference: `.claude/docs/app-origin.md`.
+
 ## SHC-0002 — MongoDB + persisted app registry (closed 2026-10-18)
 
 - MongoDB 7 single-node replica set `rs0` on Railway (template `Mongo Single Replica`, private network for the

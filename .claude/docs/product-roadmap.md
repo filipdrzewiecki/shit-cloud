@@ -28,7 +28,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] **SHC-0002 — MongoDB + persisted app registry.** Mongo on Railway as single-node replica set
   (`rs0`), `MongoTemplate`, `_apps` + `_app_versions` (TTL) replace the in-memory `AppStore`;
   index creation at startup. Local dev story (container or embedded).
-- [ ] **SHC-0003 — App serving on its own origin.** Resolve the Railway wildcard-domain question
+- [x] **SHC-0003 — App serving on its own origin.** Resolve the Railway wildcard-domain question
   (fallback: one shared apps domain on test). Serve app HTML from the apps origin with the SDK injected
   as the first `<script>`, CSP `connect-src 'none'`, sandbox incl. `allow-same-origin`. Minimal local
   library mirror (Alpine, Tailwind, Chart.js) so CSP doesn't break apps.
@@ -47,7 +47,9 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [ ] **SHC-0007 — Generic chat module (backend).** Separate Maven module: conversation, SSE
   streaming, pluggable tool registration, Spring AI + Anthropic, key from env.
 - [ ] **SHC-0008 — Reusable React chat package.** Separate package (also as web component), used by
-  the build screen; live preview in the same sandbox/origin model as production.
+  the build screen; live preview in the same sandbox/origin model as production. Includes the
+  draft-preview fix: `DraftFrame` gets `<base href>` to the apps origin so `/_lib/` loads in previews
+  (`.claude/docs/app-origin.md`, known gap) — pull it forward if Upload previews hurt before then.
 - [ ] **SHC-0009 — ShitCloud tools + system prompt.** `list_spaces`, `sample_docs`, `get_app`,
   `save_draft`; SDK docs in the system prompt; iterate on prompt quality against the 4/5 criterion.
 
@@ -85,9 +87,9 @@ HTML with CDN libs + localStorage is imported and works.
 
 | Question | Decided in |
 |---|---|
-| Railway wildcard custom domains? Test fallback for per-app origins | SHC-0003 |
+| Railway wildcard custom domains? Test fallback for per-app origins | SHC-0003 — shared apps domain on `test` (second generated domain → port 8081); per-app hosts are config only |
 | AD flavour (ADFS vs Entra ID) | Phase 5 — roles claim kept configurable (`.claude/docs/auth.md`) |
 | Does the company run MongoDB on-prem? | Phase 5 |
 | React chat library + streaming protocol | SHC-0006 |
-| Library mirror contents | SHC-0003 (minimal), SHC-0016 (full) |
+| Library mirror contents | SHC-0003 (minimal: Alpine, Tailwind browser, Chart.js — done), SHC-0016 (full) |
 | Neutral identifiers (package, domains, env vars) | Open — ticket prefix `SHC` chosen |
