@@ -49,6 +49,11 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
 - Auth: two tiers. Builders/admins sign in through Auth0 (SPA + PKCE, API is a JWT resource server,
   roles from a token claim). Everyone else signs in with a shared password (`GUEST_PASSWORD`) and gets
   an API-issued guest token (1 day). Decisions, Auth0 setup, gotchas: `.claude/docs/auth.md`
+- Apps origin: the API listens on a **second port** (`apps.port`, `APPS_PORT`, default 8081) that serves only
+  app documents and the library mirror `/_lib/` (Alpine, Tailwind browser build, Chart.js — pinned in
+  `apps-lib/LICENSES.md`); `PortFence` 404s everything else on each port. It has its own Railway domain.
+  `APPS_URL_PATTERN` (no default) places `{slug}` in the host (one origin per app, needs a wildcard domain)
+  or the path (one shared apps origin — `test`). App names whose slug is `api`, `actuator` or `error` are refused.
 - Planned (see roadmap): Spring AI + Claude
 
 ## Tasks
@@ -72,8 +77,10 @@ Whenever implementing anything that has a ticket number (e.g. `SHC-0001`):
 ```
 npm install && npm install --prefix frontend      # first time
 cp frontend/.env.example frontend/.env.local       # first time
-npm run dev                                        # backend :8080 (dev profile) + frontend :3000
+npm run dev                                        # backend :8080 + apps :8081 (dev profile) + frontend :3000
 ```
+
+Locally apps run at `http://{slug}.apps.localhost:8081/` (browsers resolve `*.localhost` to this machine).
 
 Locally the `dev` profile enables guest sign-in with the password `dev`. Builder sign-in needs
 `VITE_AUTH0_CLIENT_ID` in `frontend/.env.local`.
@@ -100,6 +107,9 @@ code and report findings. Compiling (`mvn -q compile`) and typechecking the fron
 src/main/java/com/drzewiecki/shitcloud/
   Application.java
   controller/      AppController, ChatController, MeController, GuestLoginController
+  apps/            the apps port: AppsConnectorConfig (2nd Tomcat connector), PortFence, AppsSecurityConfig
+                   (own filter chain, framing allowed), AppOrigin (url pattern), AppDocumentController (CSP),
+                   SdkInjector, LibraryMirrorConfig
   model/           request/response records; Mongo documents AppRecord (_apps), AppVersion (_app_versions)
   security/        SecurityConfig (two token issuers, CORS), AuthProperties, converters, GuestTokenService,
                    LoginAttemptLimiter, AuthenticationUtils.currentUser()
@@ -109,11 +119,14 @@ src/main/java/com/drzewiecki/shitcloud/
 src/main/resources/
   application.properties, application-dev.properties
   sample-apps/     seed HTML apps for the mockup
+  apps/sdk.js      inlined as the first script of every app document (window.shitcloud)
+  apps-lib/        the library mirror served at /_lib/ + LICENSES.md (versions)
 frontend/src/
   api/             client.ts (only place an absolute URL is built and a token attached), queries.ts, types.ts
   auth/            guestSession.ts (guest token in localStorage), returnTo.ts
   pages/           SignInPage, AppListPage, AppHostPage, BuildPage, UploadPage, DeployBar
-  shell/           Layout, AppFrame (sandboxed iframe)
+  shell/           Layout, AppFrame (deployed app: apps-origin src + allow-same-origin),
+                   DraftFrame (Build/Upload preview: srcdoc, opaque origin)
   styles/          tokens.css (colours, light + dark), app.css
 ```
 
@@ -126,9 +139,13 @@ Every endpoint requires `Authorization: Bearer <token>` (Auth0 or guest) unless 
 | POST | `/api/auth/guest` | public | `{password, name}` → `{token, expiresAt}`; 401 wrong password, 429 too many failures, 404 disabled |
 | GET  | `/api/me` | signed in | Caller: `{id, displayName, groups, builder, admin, guest}` |
 | GET  | `/api/apps` | signed in | List apps, most recently used first |
-| GET  | `/api/apps/{slug}` | signed in | App + HTML; marks it used, un-archives |
+| GET  | `/api/apps/{slug}` | signed in | App + HTML + `frameUrl` (on the apps origin); marks it used, un-archives |
 | POST | `/api/apps` | builder | Deploy `{name, description?, html}`; same name → new version (kept 90 days in `_app_versions`); owner = creator, `updatedBy` = caller; 413 over 5 MB, 409 concurrent deploy |
 | POST | `/api/chat` | builder | Mock chat reply + draft HTML |
+
+Apps port (public, no token): `GET /{slug}/` (path mode; `/{slug}` redirects) or `GET /` (host mode) → the app's
+HTML with the SDK injected, CSP (`connect-src 'none'`, `frame-ancestors` = `cors.allowed-origins`), `no-store`.
+`GET /_lib/{file}` → mirrored library, cached 1 day.
 
 ## Non-negotiables (from the handoff — never trade these away for convenience)
 
@@ -142,7 +159,9 @@ Every endpoint requires `Authorization: Bearer <token>` (Auth0 or guest) unless 
 - **Data never leaves the company.** The only outbound traffic is the Claude API.
 - **User apps never run on the platform origin.** The platform origin keeps credentials in
   `localStorage` (Auth0 refresh token, guest token); an app with that origin could read them. Never add
-  `allow-same-origin` to a `srcdoc` frame.
+  `allow-same-origin` to a `srcdoc` frame — only `AppFrame`, whose `src` is the apps origin, has it.
+- **The ports stay fenced:** the API is never answered on the apps port and app documents never on the API
+  port (`PortFence`, tested both ways). App documents never get `X-Frame-Options`; `frame-ancestors` decides.
 - **Every controller declares `@PreAuthorize`** (class or every mapping) — `isAuthenticated()`,
   `hasRole('BUILDER')`, or an explicit `permitAll()`.
 

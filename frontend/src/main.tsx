@@ -30,7 +30,7 @@ if (!root) throw new Error('Missing #root')
  * silent auth needs third-party cookies, which browsers increasingly block, so
  * the iframe fallback is off rather than masking a broken refresh-token setup.
  * A durable credential on this origin is acceptable only because user apps
- * never run on it (see AppFrame). Rotation with reuse detection is configured
+ * never run on it (see AppFrame and DraftFrame). Rotation with reuse detection is configured
  * in Auth0 to bound a stolen token.
  */
 function Auth0ProviderWithNavigate({ children }: { children: ReactNode }) {

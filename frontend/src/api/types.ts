@@ -11,6 +11,8 @@ export interface AppSummary {
 export interface AppDetail {
   app: AppSummary
   html: string
+  /** Where the app runs, on the apps origin. The GUI never builds app URLs itself. */
+  frameUrl: string
 }
 
 export interface DeployRequest {

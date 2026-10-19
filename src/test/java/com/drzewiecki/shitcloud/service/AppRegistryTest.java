@@ -23,4 +23,11 @@ class AppRegistryTest {
     void slugify_withoutLettersOrDigits_isRejected() {
         assertThatThrownBy(() -> AppRegistry.slugify("!!!")).isInstanceOf(ResponseStatusException.class);
     }
+
+    @Test
+    void slugify_refusesNamesThatWouldCollideWithTheApi() {
+        assertThatThrownBy(() -> AppRegistry.slugify("Actuator")).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> AppRegistry.slugify("API!")).isInstanceOf(ResponseStatusException.class);
+        assertThat(AppRegistry.slugify("API notes")).isEqualTo("api-notes");
+    }
 }

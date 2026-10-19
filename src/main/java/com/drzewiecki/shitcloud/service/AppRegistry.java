@@ -1,11 +1,15 @@
 package com.drzewiecki.shitcloud.service;
 
+import com.drzewiecki.shitcloud.apps.AppOrigin;
+import com.drzewiecki.shitcloud.apps.PortFence;
 import com.drzewiecki.shitcloud.model.AppDetail;
 import com.drzewiecki.shitcloud.model.AppRecord;
 import com.drzewiecki.shitcloud.model.AppSummary;
 import com.drzewiecki.shitcloud.model.AppVersion;
 import com.drzewiecki.shitcloud.model.DeployRequest;
+import com.drzewiecki.shitcloud.mongo.MongoCollections;
 import com.mongodb.MongoException;
+import org.bson.Document;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Sort;
@@ -41,11 +45,14 @@ public class AppRegistry {
     private final MongoTemplate mongo;
     private final TransactionTemplate transaction;
     private final AppsProperties properties;
+    private final AppOrigin appOrigin;
 
-    public AppRegistry(MongoTemplate mongo, MongoTransactionManager transactionManager, AppsProperties properties) {
+    public AppRegistry(MongoTemplate mongo, MongoTransactionManager transactionManager, AppsProperties properties,
+                       AppOrigin appOrigin) {
         this.mongo = mongo;
         this.transaction = new TransactionTemplate(transactionManager);
         this.properties = properties;
+        this.appOrigin = appOrigin;
     }
 
     /**
@@ -71,7 +78,21 @@ public class AppRegistry {
         if (app == null) {
             throw new ResponseStatusException(NOT_FOUND, "No app " + slug);
         }
-        return new AppDetail(app.summary(), app.html());
+        return new AppDetail(app.summary(), app.html(), appOrigin.urlFor(slug));
+    }
+
+    /**
+     * The current HTML only, for serving the app document. Reading it is not using the app.
+     */
+    public String html(String slug) {
+        Query query = bySlug(slug);
+        query.fields().include("html");
+        // A raw document: AppRecord cannot be built from a projection (its primitives would be null).
+        Document app = mongo.findOne(query, Document.class, MongoCollections.APPS);
+        if (app == null) {
+            throw new ResponseStatusException(NOT_FOUND, "No app " + slug);
+        }
+        return app.getString("html");
     }
 
     /**
@@ -147,6 +168,9 @@ public class AppRegistry {
         String slug = ascii.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "");
         if (slug.isEmpty()) {
             throw new ResponseStatusException(BAD_REQUEST, "Name must contain letters or digits");
+        }
+        if (PortFence.RESERVED_SEGMENTS.contains(slug)) {
+            throw new ResponseStatusException(BAD_REQUEST, "\"" + name.strip() + "\" is reserved, choose another name");
         }
         return slug;
     }

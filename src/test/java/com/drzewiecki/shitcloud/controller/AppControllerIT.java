@@ -28,7 +28,8 @@ class AppControllerIT extends IntegrationTest {
         mvc.perform(get("/api/apps/lunch-poll").with(guest("Anna")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.app.slug").value("lunch-poll"))
-                .andExpect(jsonPath("$.html").value("<p>hello</p>"));
+                .andExpect(jsonPath("$.html").value("<p>hello</p>"))
+                .andExpect(jsonPath("$.frameUrl").value("http://apps.test/lunch-poll/"));
     }
 
     @Test

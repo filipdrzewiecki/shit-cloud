@@ -21,7 +21,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 /**
  * Full application context with MockMvc on an embedded mongod (see {@code EmbeddedMongoConfig}). Guest
- * sign-in is enabled with a test password. Every test starts with an empty registry; the indexes stay.
+ * sign-in is enabled with a test password, apps are in path mode. Every test starts with an empty registry; the indexes stay.
  *
  * <p>Two ways to act as a caller:
  * <ul>
@@ -33,12 +33,16 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
  */
 @SpringBootTest(properties = {
         "auth.guest.password=" + IntegrationTest.GUEST_PASSWORD,
-        "auth.guest.token-secret=integration-test-secret-0123456789abcdefghij"
+        "auth.guest.token-secret=integration-test-secret-0123456789abcdefghij",
+        "apps.url-pattern=" + IntegrationTest.APPS_URL_PATTERN
 })
 @AutoConfigureMockMvc
 public abstract class IntegrationTest {
 
     protected static final String GUEST_PASSWORD = "test-password";
+    protected static final String APPS_URL_PATTERN = "http://apps.test/{slug}/";
+    /** MockMvc requests arrive on port 80 (the API) unless a test puts them on this one. */
+    protected static final int APPS_PORT = 8081;
     protected static final String BUILDER_EMAIL = "builder@example.com";
     protected static final String ADMIN_EMAIL = "admin@example.com";
 
@@ -87,6 +91,15 @@ public abstract class IntegrationTest {
     protected RequestPostProcessor guest(String name) {
         String token = guestTokenService.issue(name).token();
         return bearer(token);
+    }
+
+    /** Sends the request to the apps port, as the second connector would receive it. */
+    protected static RequestPostProcessor appsPort() {
+        return request -> {
+            request.setLocalPort(APPS_PORT);
+            request.setServerPort(APPS_PORT);
+            return request;
+        };
     }
 
     protected static RequestPostProcessor bearer(String token) {

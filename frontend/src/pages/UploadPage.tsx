@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent } from 'react'
-import { AppFrame } from '../shell/AppFrame'
+import { DraftFrame } from '../shell/DraftFrame'
 import { DeployBar } from './DeployBar'
 
 /**
@@ -46,7 +46,7 @@ export function UploadPage() {
             <strong>Preview</strong>
             <DeployBar key={fileName} html={html} initialName={fileName} />
           </div>
-          <AppFrame html={html} title="Upload preview" />
+          <DraftFrame html={html} title="Upload preview" />
         </div>
       )}
     </section>

@@ -31,7 +31,8 @@ class MongoIndexesIT extends IntegrationTest {
 
     @Test
     void changedTtl_isAppliedToTheExistingIndex() {
-        AppsProperties shorter = new AppsProperties(Duration.ofDays(30), DataSize.ofMegabytes(5), false);
+        AppsProperties shorter = new AppsProperties(Duration.ofDays(30), DataSize.ofMegabytes(5), false, 8081,
+                "http://apps.test/{slug}/");
         try {
             new MongoIndexes(mongo, shorter).ensure();
 

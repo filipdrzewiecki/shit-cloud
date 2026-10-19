@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useChat } from '../api/queries'
 import type { ChatMessage } from '../api/types'
-import { AppFrame } from '../shell/AppFrame'
+import { DraftFrame } from '../shell/DraftFrame'
 import { DeployBar } from './DeployBar'
 
 const GREETING: ChatMessage = {
@@ -77,7 +77,7 @@ export function BuildPage() {
           <DeployBar html={draft} />
         </div>
         {draft ? (
-          <AppFrame html={draft} title="Draft preview" />
+          <DraftFrame html={draft} title="Draft preview" />
         ) : (
           <div className="empty">The draft app shows up here after the first answer.</div>
         )}

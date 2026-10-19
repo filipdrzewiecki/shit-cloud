@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Without GUEST_PASSWORD the guest door is shut, and an empty password must not open it. */
-@SpringBootTest(properties = "auth.guest.password=")
+@SpringBootTest(properties = {"auth.guest.password=", "apps.url-pattern=http://apps.test/{slug}/"})
 @AutoConfigureMockMvc
 class GuestLoginDisabledIT {
 

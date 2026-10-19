@@ -17,7 +17,8 @@ class SampleAppSeederIT extends IntegrationTest {
     private AppRegistry registry;
 
     private SampleAppSeeder seeder() {
-        AppsProperties enabled = new AppsProperties(Duration.ofDays(90), DataSize.ofMegabytes(5), true);
+        AppsProperties enabled = new AppsProperties(Duration.ofDays(90), DataSize.ofMegabytes(5), true, 8081,
+                "http://apps.test/{slug}/");
         return new SampleAppSeeder(mongo, enabled);
     }
 

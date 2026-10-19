@@ -13,7 +13,7 @@ export function AppHostPage() {
   if (app.isPending) return <p className="muted">Loading…</p>
   if (app.isError) return <p className="error-text">Could not open app: {app.error.message}</p>
 
-  const { app: summary, html } = app.data
+  const { app: summary, frameUrl } = app.data
   return (
     <section className="host">
       <div className="host-bar">
@@ -25,11 +25,14 @@ export function AppHostPage() {
           v{summary.version} · by {summary.owner}
         </span>
         <span className="spacer" />
-        <span className="badge muted-badge" title="Each app will get its own origin: {slug}.apps.…">
-          {summary.slug}.apps.shitcloud
+        <span className="badge muted-badge" title="The app runs on its own origin, apart from ShitCloud">
+          {new URL(frameUrl).host}
         </span>
+        <a href={frameUrl} target="_blank" rel="noopener noreferrer">
+          Open in new tab
+        </a>
       </div>
-      <AppFrame html={html} title={summary.name} />
+      <AppFrame src={frameUrl} title={summary.name} />
     </section>
   )
 }
