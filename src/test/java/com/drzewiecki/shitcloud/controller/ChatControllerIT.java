@@ -15,7 +15,7 @@ class ChatControllerIT extends IntegrationTest {
 
     @Test
     void guest_cannotUseTheChat() throws Exception {
-        mvc.perform(post("/api/chat").with(guest("Anna"))
+        mvc.perform(post("/api/chat/mock").with(guest("Anna"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(MESSAGE))
                 .andExpect(status().isForbidden());
@@ -23,7 +23,7 @@ class ChatControllerIT extends IntegrationTest {
 
     @Test
     void builder_getsAReply() throws Exception {
-        mvc.perform(post("/api/chat").with(builder())
+        mvc.perform(post("/api/chat/mock").with(builder())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(MESSAGE))
                 .andExpect(status().isOk())

@@ -62,7 +62,8 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
   earlier states in `doc_history` (same transaction, removed after 90 days). Apps reach it only through the SDK
   (`window.shitcloud.db` / `me()`) → `postMessage` → host page bridge (`shell/appBridge.ts`) → Data API.
   SDK, rules, limits, retries: `.claude/docs/data-api.md`
-- Planned (see roadmap): Spring AI + Claude
+- Build chat: Spring AI 2.0 + Claude (`spring-ai-starter-model-anthropic`), streamed to the client as SSE in the
+  AI SDK UI message stream v1; protocol, design and gotchas: `.claude/docs/chat-protocol.md`
 
 ## Tasks
 - All tasks are in `.claude/docs`, one folder per ticket: `.claude/docs/SHC-{number}-{short-name}/`
@@ -115,7 +116,13 @@ code and report findings. Compiling (`mvn -q compile`) and typechecking the fron
 ```
 src/main/java/com/drzewiecki/shitcloud/
   Application.java
-  controller/      AppController, ChatController, MeController, GuestLoginController, DataController
+  controller/      AppController, ChatController (mock, until the Build screen streams), MeController,
+                   GuestLoginController, DataController
+  chat/            generic, copyable build-chat core — imports nothing else from ShitCloud (ChatPackageBoundaryTest):
+                   ChatEngine (own step loop over Spring AI ChatModel.stream: text → tool calls → run → next step),
+                   UiStreamWriter + UiParts (AI SDK UI message stream v1), ChatTool/ToolResult (plug-in tools),
+                   HistoryMapper (saved UIMessages → prompt; only the latest data part in full), ConversationStore
+  buildchat/       ShitCloud's chat: BuildChatController (/api/chat), SaveDraftTool, GetAppTool, BuildChatPrompt
   data/            DataService (docs + doc_history, row locks), FilterTranslator (Mongo-style filter → SQL on JSONB),
                    DataProperties, records, DataException + DataExceptionHandler ({code, message} bodies)
   apps/            the apps port: AppsConnectorConfig (2nd Tomcat connector), PortFence, AppsSecurityConfig
@@ -129,7 +136,10 @@ src/main/java/com/drzewiecki/shitcloud/
                    MockChatService, GuestLoginService
 src/main/resources/
   application.properties, application-dev.properties
-  db/migration/    Flyway SQL migrations (V1__schema.sql: apps, app_versions, docs, doc_history)
+  db/migration/    Flyway SQL migrations (V1 apps, app_versions, docs, doc_history; V2 archive; V3 chat_conversations,
+                   chat_messages)
+  build-chat/      chat-rules.md (system prompt preamble); builder-guide.md is copied in from frontend/src/guide by
+                   the build (pom resources + Dockerfile) — one guide for /guide and the chat
   sample-apps/     seed HTML apps for the mockup
   apps/sdk.js      inlined as the first script of every app document: window.shitcloud.me() / db.*
   apps-lib/        the library mirror served at /_lib/ + LICENSES.md (versions)
@@ -160,7 +170,9 @@ Every endpoint requires `Authorization: Bearer <token>` (Auth0 or guest) unless 
 | DELETE | `/api/apps/{slug}?confirm={slug}` | builder | Irreversible: app, versions, documents and history → `{documents, versions, history}`; wrong `confirm` → 400 |
 | GET  | `/api/apps/{slug}/usage` | signed in | `{documents, collections, versions}` (shown before deleting) |
 | GET  | `/api/apps/{slug}/export` | signed in | All the app's documents by collection → download `<slug>-data.json` (cap `data.max-export-documents`, 413 above) |
-| POST | `/api/chat` | builder | Mock chat reply + draft HTML |
+| POST | `/api/chat` | builder | Build chat: `{conversationId?, message, targetSlug?}` → SSE, AI SDK UI message stream v1 (`chat-protocol.md`); 503 `CHAT_UNAVAILABLE` without `ANTHROPIC_API_KEY`, 400/404 `{code,message}` before the stream |
+| GET  | `/api/chat/conversations` · `/{id}` | builder | Caller's own conversations, newest first · one as `UIMessage[]` (someone else's → 404) |
+| POST | `/api/chat/mock` | builder | Mock chat reply + draft HTML (today's Build screen) |
 | POST | `/api/data/{space}/{collection}/query` | signed in | `{filter?, sort?, limit?}` → `[DocView]`; Mongo-style filter, whitelisted operators only (translated to SQL on JSONB) |
 | PUT  | `/api/data/{space}/{collection}/{id}` | signed in | `{data, expectedVersion?}` → `DocView`; previous state → `doc_history`; last write wins unless `expectedVersion` (409 `VERSION_CONFLICT`) |
 | POST | `/api/data/{space}/{collection}` | signed in | `{data}` → 201 `DocView` with a generated id |
@@ -197,6 +209,8 @@ HTML with the SDK injected, CSP (`connect-src 'none'`, `frame-ancestors` = `cors
 - Request/response types are Java records in `model/` (until a ticket decides otherwise).
 - **Never put ticket numbers (e.g. `SHC-0001`) in code, comments, Javadoc or test names.** The ticket
   lives in `.claude/docs`. Comments explain the *why* and stand on their own.
-- Platform UI is English. Generated/sample apps use Polish labels.
+- Platform UI is English. Generated/sample apps use Polish labels (the build chat: the user's language).
+- Chat config: `ANTHROPIC_API_KEY` (Railway `api`; never read or print it), `CHAT_MODEL` (default
+  `claude-sonnet-5-5`), `CHAT_MAX_TOKENS` (32000); tests and dev run on no key (`FakeChatModel` in chat ITs).
 - **`frontend/src/guide/builder-guide.md` is a contract with outside AI assistants.** Whenever the SDK, the app
   CSP, the library mirror or Data API limits/operators change, update it in the same change.

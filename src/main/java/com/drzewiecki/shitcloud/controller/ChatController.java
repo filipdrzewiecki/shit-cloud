@@ -10,10 +10,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Plain request/response for now. The real endpoint will stream over SSE from the separate chat module.
+ * The mock behind today's Build screen, until the Build screen moves to the real build chat
+ * ({@code buildchat.BuildChatController}, {@code POST /api/chat}).
  */
 @RestController
-@RequestMapping("/api/chat")
+@RequestMapping("/api/chat/mock")
 @PreAuthorize("hasRole('BUILDER')")
 public class ChatController {
 

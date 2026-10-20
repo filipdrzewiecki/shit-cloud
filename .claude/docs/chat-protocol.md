@@ -44,7 +44,7 @@ pattern (see gotchas). C is a web component (nice for U1) but fights our styling
 **Measured** (production build, gzip, React 18 + react-markdown included in every column):
 D 83 KB · B 130 KB · A 314 KB · today's whole GUI ≈ 146 KB. Glue code: A 84 lines, B 69, D 63 + 27 (SSE reader).
 
-## Protocol for SHC-0007 (`POST /api/chat`)
+## Protocol (`POST /api/chat`)
 
 **Request** (sent by `useChat` through `DefaultChatTransport`, shaped with `prepareSendMessagesRequest`; the token is
 added by our `fetch` like every API call):
@@ -111,6 +111,42 @@ data: {"type":"finish"}
 data: [DONE]
 ```
 
+## Server implementation (SHC-0007)
+
+- Packages: `chat` (generic, copyable; `ChatPackageBoundaryTest` forbids other ShitCloud imports) and `buildchat`
+  (ShitCloud's controller, tools, prompt). The Build screen still uses the mock at `POST /api/chat/mock` until the
+  React chat package switches it to `useChat`.
+- **Own step loop, not `ChatClient` + `ToolCallingAdvisor`**: `ChatEngine` calls `ChatModel.stream()` once per step,
+  streams text deltas, then shows each tool call (`tool-input-available`), runs it, shows the result, and starts the
+  next step with `AssistantMessage(toolCalls)` + `ToolResponseMessage`. Max `chat.max-steps` (5) per answer.
+- **Spring AI 2.0.1 / Anthropic stream facts** (read in the sources):
+  - text deltas arrive chunk by chunk; `tool_use` start and tool-input deltas are swallowed — tool calls appear only in
+    the step's last chunk, together with the usage. So nothing streams while the model writes a whole app as
+    `save_draft` input (**the silent minute**, 30–60 s). Mitigation: the prompt asks for one sentence before
+    `save_draft`, pings every 15 s. If that is not enough, swap the model call inside `ChatEngine` for the Anthropic
+    Java SDK (on the classpath already) and emit `tool-input-start` / stream the HTML; loop and protocol stay.
+  - `AnthropicChatModel` **ignores generic `ToolCallingChatOptions`**: a prompt with them loses the configured model
+    and the tools. Options must start from `chatModel.getOptions().mutate()` (that builder is tool-capable).
+  - With prompt options set, the model's defaults are **not merged** — the copy above is what carries the model name.
+- Reading the `Flux` blocking (`toStream()`, closed in try-with-resources = cancel): an error already signalled is
+  thrown **before** chunks still queued — the last few chunks before a failure may be lost.
+- Each step gets a copy of the message list (`List.copyOf`): `Prompt` keeps the list it is given.
+- Saved answers are the client's `UIMessage` parts (`step-start`, `text`, `tool-<name>` with `state`/`input`/`output`
+  or `errorText`, `data-<name>`); transient parts are not saved. `ChatTool.inputForHistory` keeps big inputs out
+  (`save_draft` stores a placeholder; the HTML lives once, in `data-draft`). `ToolResult.forModel` sends the model
+  more than the user sees (`get_app`: the source; the user sees `{slug, bytes}`; capped at 300 KB).
+- History to the model: last `chat.history-messages` (20), opened by a user message; only the latest data part per
+  `type#id` in full (older drafts → a one-line note), attached to the tool result that produced it; tool calls
+  without a result (stopped answer) left out.
+- Before the stream: 503 `CHAT_UNAVAILABLE` (no key), 400 empty / over 20 000 chars, 404 foreign or unknown
+  conversation, 404 `NO_SUCH_APP` (`targetSlug`). Title = first 60 characters of the first message.
+- System prompt = `resources/build-chat/chat-rules.md` + the builder guide (`frontend/src/guide/builder-guide.md`,
+  copied onto the classpath by the pom and the Dockerfile) + a rework paragraph naming `targetSlug`.
+- Checked: a stream from `/api/chat` parsed by `ai@7.0.146`'s `DefaultChatTransport` + `readUIMessageStream` gives
+  exactly the saved part order (step-start · text · tool-save_draft · data-draft · step-start · text).
+- Tests: `FakeChatModel` (scripted steps, recorded prompts) imported by `ChatIntegrationTest`; it is not a scanned
+  configuration, so local dev never picks it up.
+
 ## Gotchas found
 - **A framing mistake is silent**: a wrong part still returns 200 and an empty or stuck message. SHC-0007 keeps the
   captured stream as a test fixture and checks emitted streams part by part.
@@ -126,9 +162,7 @@ data: [DONE]
 
 ## Consequences for the next tickets
 - **SHC-0020 (Boot 4)**: no protocol impact.
-- **SHC-0007**: `POST /api/chat` (SSE, spec above), conversations + messages tables (Flyway), save drafts with the
-  conversation, Spring AI 2.0 `ChatClient` stream → this protocol; tool calls mapped to `tool-*` parts; `save_draft`
-  tool → `data-draft`; cancel on disconnect; keep-alive pings.
+- **SHC-0007**: done — see "Server implementation" above.
 - **SHC-0008**: package = `useChat` + our components (reuse `DraftFrame`; markdown via `react-markdown`); Deploy
   becomes Replace HTML when `targetSlug` is set; conversation list; later wrap as a web component (U1).
 - **SHC-0009**: tool outputs shown to the user are summaries; `get_app` for rework (U5).

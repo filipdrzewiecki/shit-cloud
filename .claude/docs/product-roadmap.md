@@ -60,10 +60,11 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] **SHC-0006 — Chat library spike.** Evaluate assistant-ui / Vercel AI SDK UI vs. own; pick the
   streaming protocol the Spring endpoint must emit. Output: decision record, no production code.
   *Decided: `useChat` (AI SDK UI) + own components; AI SDK UI message stream v1 from Spring — `.claude/docs/chat-protocol.md`.*
-- [ ] **SHC-0020 — Upgrade to Spring Boot 4.** Owner's decision in SHC-0006: Spring AI 2.0 (GA June 2026) needs
+- [x] **SHC-0020 — Upgrade to Spring Boot 4.** Owner's decision in SHC-0006: Spring AI 2.0 (GA June 2026) needs
   Boot 4 / Spring Framework 7 / Jackson 3, so the platform moves first and the chat starts on the current line.
   Covers Boot 4.x, Jackson 3 package changes, Spring Security 7, Flyway, test setup; all tests green, deploy on `test`.
-- [ ] **SHC-0007 — Generic chat module (backend).** Separate Maven module: conversation, SSE
+  *Done on Boot 4.1.1; deploy on `test` waits for the Railway outage (see project log).*
+- [~] **SHC-0007 — Generic chat module (backend).** Own package, easy to copy (owner, SHC-0007 U1): conversation, SSE
   streaming, pluggable tool registration, Spring AI 2.0 + Anthropic, key from env. Conversations saved on the
   server per builder with their drafts (SHC-0006 decision); chat both creates and reworks apps.
 - [ ] **SHC-0008 — Reusable React chat package.** Separate package (also as web component), used by

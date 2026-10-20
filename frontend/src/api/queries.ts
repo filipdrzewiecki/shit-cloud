@@ -77,7 +77,7 @@ export function useAppUsage(slug: string, enabled: boolean) {
 
 export function useChat() {
   return useMutation({
-    mutationFn: (messages: ChatMessage[]) => api.post<ChatResponse>('/api/chat', { messages }),
+    mutationFn: (messages: ChatMessage[]) => api.post<ChatResponse>('/api/chat/mock', { messages }),
   })
 }
 

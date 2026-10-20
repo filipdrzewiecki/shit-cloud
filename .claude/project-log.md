@@ -2,6 +2,20 @@
 
 What each closed ticket delivered, newest first. Durable details live in the files each entry points to.
 
+## SHC-0020 — Upgrade to Spring Boot 4 (closed 2026-10-20)
+
+- Boot 3.4 → 4.1.1 (Framework 7, Security 7, Jackson 3, Tomcat 11, Flyway 12, JUnit 6) so the chat can use
+  Spring AI 2.0. Renamed starters, one test starter per technology, `spring-boot-starter-flyway`.
+- Code: Jackson imports to `tools.jackson.*`, Tomcat factory to `org.springframework.boot.tomcat.servlet`
+  (`addAdditionalConnectors`), `@AutoConfigureMockMvc` to `org.springframework.boot.webmvc.test.autoconfigure`.
+  The properties migrator found `server.servlet.encoding.*` → `spring.servlet.encoding.*` (without it responses
+  lose UTF-8); it was removed afterwards.
+- Same API output as Boot 3 on captured requests, except the error `timestamp` format (`Z`) and health `groups`.
+  94 unit + 145 IT + 38 frontend tests green, no test expectations changed.
+- Pushed as `9bf5b41`, but **not yet running on `test`**: Railway created no deployment for it nor for `4501a13`
+  (SHC-0019), during a Railway outage. After the outage: deploy `api` and `frontend`, check a clean Boot 4 start.
+- Reference: `.claude/AGENTS.md` (stack), `.claude/docs/postgres.md` (Flyway starter).
+
 ## SHC-0006 — Chat library spike (closed 2026-10-20)
 
 - Decided: the build chat uses Vercel AI SDK UI (`useChat`) with our own components, and the Spring endpoint emits
