@@ -161,6 +161,17 @@ class DataServiceIT extends IntegrationTest {
     }
 
     @Test
+    void manyCalls_returnTheirConnections() {
+        // The pool in tests holds 4 connections: a call that keeps one would fail here within a few rounds.
+        set("a", Map.of("n", 1), "guest:Anna");
+        for (int i = 0; i < 25; i++) {
+            assertThat(find(Map.of("n", 1))).hasSize(1);
+            set("a", Map.of("n", 1), "guest:Anna");
+            data.remove(APP, "days", "missing", null, "guest:Anna");
+        }
+    }
+
+    @Test
     void add_generatesAnId() {
         DocView first = data.add(APP, "votes", new DataWrite(Map.of("place", "Pizza"), null), "guest:Anna");
         DocView second = data.add(APP, "votes", new DataWrite(Map.of("place", "Sushi"), null), "guest:Anna");

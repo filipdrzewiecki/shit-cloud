@@ -89,6 +89,8 @@ public class DataService {
                         + " order by " + orderBy + " limit ?")
                 .params(params)
                 .query(docMapper)
+                // list(), not stream(): a JDBC stream keeps its connection until closed, and toList() never closes it.
+                .list()
                 .stream()
                 .map(DocView::of)
                 .toList();

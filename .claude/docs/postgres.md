@@ -77,5 +77,9 @@ syntax was kept on purpose.)
   Boot upgrade.
 - A hard-killed dev run leaves `postgres.exe` processes behind (Task Manager); binaries unpack into
   `%TEMP%/embedded-pg`.
+- **Never `JdbcClient…query(…).stream()`** without try-with-resources: the stream holds its connection until
+  closed, and `toList()` does not close it. Use `.list()`. This leaked one connection per Data API query and
+  exhausted Railway's pool of 10 within minutes (500s, "Connection is not available"). Tests now run through a
+  4-connection HikariCP pool with a 2 s timeout (`EmbeddedPostgresConfig`), so a leak fails `DataServiceIT` fast.
 - Forcing a failure inside a transaction in tests: a temporary `CHECK (false) NOT VALID` constraint on the table
   the write should fail on (see `DataServiceIT`, `AppRegistryIT`).
