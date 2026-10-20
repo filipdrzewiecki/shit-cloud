@@ -35,9 +35,19 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] **SHC-0004 — Data API + bridge.** `docs` collection, whitelist filter → `Criteria`, upsert /
   delete with `_history` in the same transaction, optimistic `version`; host-page `postMessage`
   bridge with origin/source checks; `window.shitcloud.db` + `me()` in the SDK.
-- [~] **SHC-0018 — Switch from MongoDB to PostgreSQL (JSONB).** Owner's decision: Postgres replaces Mongo
+- [x] **SHC-0018 — Switch from MongoDB to PostgreSQL (JSONB).** Owner's decision: Postgres replaces Mongo
   everywhere (registry tables, app data as JSONB, Flyway, scheduled expiry, embedded Postgres locally); the SDK's
   filter syntax stays. Numbered last, done before SHC-0005.
+- [ ] **SHC-0019 — Manage a deployed app: remove, download, replace HTML.** Owner's request (2026-10-20):
+  1. *Remove* an app in two ways: **HTML only** = the app is archived (hidden from the list, its data kept) and can
+     be brought back later; **with its data** = the app, its versions and its documents are deleted (history
+     follows its retention).
+  2. *Download* an app: the HTML alone, or the HTML **with its data** (e.g. one file/zip with the documents as JSON).
+  3. *Replace the HTML* of an existing app in place (pick the app, upload a new file) without touching its data —
+     today only a deploy under the exact same name does that.
+  Open for analysis: who may do each (builder / owner / admin), confirmation for the destructive remove, the
+  download format (and whether re-uploading a "with data" download restores data), how archived apps are listed
+  and restored. Takes over the "admin archive/delete" part of SHC-0014.
 - [ ] **SHC-0005 — Presence calendar end-to-end.** Hand-written calendar on the real SDK, two users,
   write-only-own-space rule, `updatedBy`. Phase 1 acceptance.
 
@@ -73,7 +83,7 @@ HTML with CDN libs + localStorage is imported and works.
 
 **Done when:** the pilot team built at least one app nobody asked them to build.
 
-- [ ] **SHC-0014 — App lifecycle.** 30-day archiving, archived filter, admin archive/delete.
+- [ ] **SHC-0014 — App lifecycle.** 30-day automatic archiving, archived filter (manual archive/delete moved to SHC-0019).
 - [ ] **SHC-0015 — Token limits.** Daily limit per builder, usage counters, admin view.
 - [ ] **SHC-0016 — ZIP upload + full library mirror.**
 - [ ] **SHC-0017 — Backups & pilot readiness.** `mongodump` to a bucket, one tested restore, vendor

@@ -65,6 +65,8 @@ syntax was kept on purpose.)
   select doc_id, version, op, data, changed_by, changed_at from doc_history where space = 'lunch-poll' order by id;
   ```
 - No backups yet (SHC-0017).
+- The previous `Mongo Single Replica` service (and `MONGODB_URI` on `api`) is unused since SHC-0018 and waits for the
+  owner's go to be deleted.
 
 ## Local development and tests
 

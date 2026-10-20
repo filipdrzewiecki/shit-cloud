@@ -2,6 +2,24 @@
 
 What each closed ticket delivered, newest first. Durable details live in the files each entry points to.
 
+## SHC-0018 — Switch from MongoDB to PostgreSQL (closed 2026-10-20)
+
+- Owner's decision: PostgreSQL replaces MongoDB everywhere. Tables from a Flyway migration (`apps`, `app_versions`,
+  `docs` with JSONB `data`, `doc_history`), plain SQL through `JdbcClient`, a nightly `ExpiryJob` instead of TTL
+  indexes. `test` started fresh (no data migration).
+- Apps kept their Mongo-style filters; `FilterTranslator` turns them into parameterised SQL with MongoDB's meaning
+  (array contains, null = missing, type-bracketed ranges by code point, Mongo sort order). Writes lock the row, so
+  the retry loop is gone. Builder guide explains how values compare.
+- Local dev and tests on an embedded PostgreSQL 18 (zonky), matching Railway's `Postgres` (18.6, TCP proxy on).
+  Railway set up through the Railway tools: service, proxy, `api` variables.
+- Incident after go-live: a JDBC `stream()` leaked one connection per data query and exhausted the pool of 10
+  (500s). Fixed with `list()`; tests now run behind a 4-connection pool so leaks fail fast.
+- 94 unit + 122 integration + 31 frontend tests green; verified live by the owner (lunch-poll, Team Calendar with
+  integration budget and explicit Save).
+- Left on Railway: the old `Mongo Single Replica` service + volume and `MONGODB_URI` on `api` (unused) — remove
+  when the owner confirms.
+- Reference: `.claude/docs/postgres.md` (replaces `mongodb.md`), `.claude/docs/data-api.md`.
+
 ## SHC-0004 — Data API + bridge (closed 2026-10-19)
 
 - Apps have shared, durable data: `docs` (space = app slug, app fields under `data`) with every replaced or deleted
@@ -41,7 +59,7 @@ What each closed ticket delivered, newest first. Durable details live in the fil
 - 21 unit + 48 integration tests green; deployed to `test` and verified by the user, including in Compass.
 - Process: the wiki and frontend-instruction phases were dropped from the SDLC flow (frontend is always in
   scope, docs happen on close). New critical rule: never commit or push without an explicit order.
-- Reference: `.claude/docs/mongodb.md`.
+- Reference: `.claude/docs/mongodb.md` (removed with SHC-0018; see `postgres.md`).
 
 ## SHC-0001 — Auth0 login + roles (closed 2026-10-18)
 
