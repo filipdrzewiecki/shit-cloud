@@ -37,7 +37,8 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
 ## Stack
 
 - Monorepo, modelled on `my-intelligence`
-- Backend (repo root): Java 21, Spring Boot 3.4, Maven
+- Backend (repo root): Java 21, Spring Boot 4.1 (Framework 7, Security 7), Maven. JSON is Jackson 3: import
+  `tools.jackson.*` (only annotations stay `com.fasterxml.jackson.annotation`); one test starter per technology
 - Frontend (`frontend/`): React 18 + Vite + TypeScript, react-router, TanStack Query; served by nginx
 - Hosting: Railway project `shitcloud`, environment `test`, two services built from `main`
   (`api` from `/`, `frontend` from `/frontend`) plus a `Postgres` database service. Settings live in the Railway service config —
@@ -67,7 +68,7 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
 - All tasks are in `.claude/docs`, one folder per ticket: `.claude/docs/SHC-{number}-{short-name}/`
 - Finished tickets are **closed** (ask first): knowledge compacted into project `.md` files, the ticket
   folder removed, a short entry added to `.claude/project-log.md` — see "Closing the ticket" in the SDLC flow
-- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `postgres.md`, `app-origin.md`, `data-api.md`
+- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `postgres.md`, `app-origin.md`, `data-api.md`, `chat-protocol.md`
 - Ticket naming pattern: `SHC-{number}` (four digits, e.g. `SHC-0001`)
 
 ## MANDATORY — Ticket-based implementation rule

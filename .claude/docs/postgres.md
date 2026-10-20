@@ -75,8 +75,8 @@ syntax was kept on purpose.)
   Used by `DevApplication` (`npm run dev`) and every `*IT`. `embedded-postgres.properties` only satisfies the
   `${DATABASE_*}` placeholders.
 - Tests reset with `TRUNCATE … RESTART IDENTITY CASCADE` (`IntegrationTest`); the schema stays.
-- Flyway 10 (Boot 3.4) logs "PostgreSQL 18 is newer than this version of Flyway" — harmless; goes away with a
-  Boot upgrade.
+- Flyway comes in through `spring-boot-starter-flyway` (Boot 4 no longer auto-configures it from `flyway-core`
+  alone); `flyway-database-postgresql` is still needed next to it.
 - A hard-killed dev run leaves `postgres.exe` processes behind (Task Manager); binaries unpack into
   `%TEMP%/embedded-pg`.
 - **Never `JdbcClient…query(…).stream()`** without try-with-resources: the stream holds its connection until

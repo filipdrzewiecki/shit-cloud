@@ -1,7 +1,7 @@
 package com.drzewiecki.shitcloud.data;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -306,7 +306,7 @@ public final class FilterTranslator {
     private static String json(Object value) {
         try {
             return JSON.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw DataException.badRequest("Unsupported value " + value);
         }
     }

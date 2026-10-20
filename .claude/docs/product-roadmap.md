@@ -48,17 +48,24 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
   Open for analysis: who may do each (builder / owner / admin), confirmation for the destructive remove, the
   download format (and whether re-uploading a "with data" download restores data), how archived apps are listed
   and restored. Takes over the "admin archive/delete" part of SHC-0014.
-- [ ] **SHC-0005 — Presence calendar end-to-end.** Hand-written calendar on the real SDK, two users,
-  write-only-own-space rule, `updatedBy`. Phase 1 acceptance.
+- [x] **SHC-0005 — Presence calendar end-to-end.** Hand-written calendar on the real SDK, two users,
+  write-only-own-space rule, `updatedBy`. Phase 1 acceptance. *Accepted as is (2026-10-20): the owner's Team
+  Calendar (people, teams, vacation/office days, invoicing caps, integration budget) runs on `test` for several
+  users through the SDK, bridge and Data API; no separate app built.*
 
 ## Phase 2 — Chat
 
 **Done when:** 4 of 5 different apps generated from a prompt work without manual fixes.
 
-- [ ] **SHC-0006 — Chat library spike.** Evaluate assistant-ui / Vercel AI SDK UI vs. own; pick the
+- [x] **SHC-0006 — Chat library spike.** Evaluate assistant-ui / Vercel AI SDK UI vs. own; pick the
   streaming protocol the Spring endpoint must emit. Output: decision record, no production code.
+  *Decided: `useChat` (AI SDK UI) + own components; AI SDK UI message stream v1 from Spring — `.claude/docs/chat-protocol.md`.*
+- [ ] **SHC-0020 — Upgrade to Spring Boot 4.** Owner's decision in SHC-0006: Spring AI 2.0 (GA June 2026) needs
+  Boot 4 / Spring Framework 7 / Jackson 3, so the platform moves first and the chat starts on the current line.
+  Covers Boot 4.x, Jackson 3 package changes, Spring Security 7, Flyway, test setup; all tests green, deploy on `test`.
 - [ ] **SHC-0007 — Generic chat module (backend).** Separate Maven module: conversation, SSE
-  streaming, pluggable tool registration, Spring AI + Anthropic, key from env.
+  streaming, pluggable tool registration, Spring AI 2.0 + Anthropic, key from env. Conversations saved on the
+  server per builder with their drafts (SHC-0006 decision); chat both creates and reworks apps.
 - [ ] **SHC-0008 — Reusable React chat package.** Separate package (also as web component), used by
   the build screen; live preview in the same sandbox/origin model as production. Includes the
   draft-preview fix: `DraftFrame` gets `<base href>` to the apps origin so `/_lib/` loads in previews
@@ -105,6 +112,7 @@ HTML with CDN libs + localStorage is imported and works.
 | Railway wildcard custom domains? Test fallback for per-app origins | SHC-0003 — shared apps domain on `test` (second generated domain → port 8081); per-app hosts are config only |
 | AD flavour (ADFS vs Entra ID) | Phase 5 — roles claim kept configurable (`.claude/docs/auth.md`) |
 | Does the company run MongoDB on-prem? | Phase 5 |
-| React chat library + streaming protocol | SHC-0006 |
+| React chat library + streaming protocol | SHC-0006 — `useChat` + own components, AI SDK UI message stream v1 (`chat-protocol.md`) |
 | Library mirror contents | SHC-0003 (minimal: Alpine, Tailwind browser, Chart.js — done), SHC-0016 (full) |
 | Neutral identifiers (package, domains, env vars) | Open — ticket prefix `SHC` chosen |
+| LLM vendor key and approval | `test`: the owner's own Anthropic API key (added to Railway by the owner when SHC-0007 needs it); no company data goes into prompts. Company approval is still needed before a pilot with real data |

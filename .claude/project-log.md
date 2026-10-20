@@ -2,6 +2,26 @@
 
 What each closed ticket delivered, newest first. Durable details live in the files each entry points to.
 
+## SHC-0006 — Chat library spike (closed 2026-10-20)
+
+- Decided: the build chat uses Vercel AI SDK UI (`useChat`) with our own components, and the Spring endpoint emits
+  the AI SDK UI message stream v1 (SSE) by hand — protocol specified event by event, with a captured example.
+- Proven with throwaway prototypes: a plain-Java emitter parsed correctly by the SDK's own client; assistant-ui,
+  `useChat` and a fully own UI working in Chrome on the same stream (tool step, markdown, draft to the preview with
+  the rework target, Stop cancelling the server). Scored B 48 / own 49 / assistant-ui 43 / deep-chat 35; `useChat`
+  chosen for the public protocol and the features it brings for +47 KB.
+- Owner decisions: Spring Boot 4 first (new ticket SHC-0020), conversations saved on the server, chat creates and
+  reworks apps, React package now / web component later. `ANTHROPIC_API_KEY` set on Railway `api` (owner's own key).
+- Reference: `.claude/docs/chat-protocol.md`.
+
+## SHC-0005 — Presence calendar end-to-end (closed 2026-10-20)
+
+- Accepted without new code: the owner's Team Calendar (people, teams, vacation and office days per quarter,
+  invoicing caps with a mute, integration budget per team, explicit Save) runs on `test` for several users on the
+  real SDK, bridge and Data API, each change recorded with `updatedBy` and history. **Phase 1 (Skeleton) is done.**
+- The app lives outside the repo (uploaded through ShitCloud); it falls back to browser storage when opened
+  outside ShitCloud.
+
 ## SHC-0018 — Switch from MongoDB to PostgreSQL (closed 2026-10-20)
 
 - Owner's decision: PostgreSQL replaces MongoDB everywhere. Tables from a Flyway migration (`apps`, `app_versions`,
