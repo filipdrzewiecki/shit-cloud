@@ -88,16 +88,16 @@ class AppRegistryIT extends IntegrationTest {
     }
 
     @Test
-    void open_movesLastUsedAndUnarchives() {
+    void open_movesLastUsed_butAnArchivedAppStaysArchived() {
         Instant longAgo = Instant.now().minus(Duration.ofDays(60));
         insertApp("stara", longAgo, true);
 
         AppDetail opened = registry.open("stara");
 
         assertThat(opened.html()).isEqualTo("<p>stara</p>");
-        assertThat(opened.app().archived()).isFalse();
+        assertThat(opened.app().archived()).isTrue();
         assertThat(opened.app().lastUsedAt()).isAfter(longAgo);
-        assertThat(app("stara")).containsEntry("archived", false);
+        assertThat(app("stara")).containsEntry("archived", true);
     }
 
     @Test

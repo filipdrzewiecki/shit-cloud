@@ -123,6 +123,30 @@ public class DataService {
                 .single());
     }
 
+    /**
+     * Everything an app holds, grouped by collection (oldest first within each), for downloading. Capped by
+     * {@code data.max-export-documents}: the file is built in memory.
+     */
+    public ExportView export(String slug) {
+        ExportView.App app = jdbc.sql("select slug, name, version from apps where slug = ?")
+                .param(slug)
+                .query((row, i) -> new ExportView.App(row.getString("slug"), row.getString("name"), row.getInt("version")))
+                .optional()
+                .orElseThrow(() -> new DataException(HttpStatus.NOT_FOUND, DataException.NO_SUCH_APP, "No app " + slug));
+        long count = jdbc.sql("select count(*) from docs where space = ?").param(slug).query(Long.class).single();
+        if (count > properties.maxExportDocuments()) {
+            throw new DataException(HttpStatus.PAYLOAD_TOO_LARGE, DataException.TOO_LARGE, "This app holds " + count
+                    + " documents; a download can hold at most " + properties.maxExportDocuments());
+        }
+        Map<String, List<DocView>> collections = new LinkedHashMap<>();
+        jdbc.sql("select * from docs where space = ? order by collection, created_at, id")
+                .param(slug)
+                .query(docMapper)
+                .list()
+                .forEach(doc -> collections.computeIfAbsent(doc.collection(), c -> new ArrayList<>()).add(DocView.of(doc)));
+        return new ExportView(app, Instant.now(), collections);
+    }
+
     /** Removes a document; its last state stays in history. False when there was nothing to remove. */
     public boolean remove(String space, String collection, String docId, Long expectedVersion, String caller) {
         requireCollection(space, collection);

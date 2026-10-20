@@ -4,8 +4,10 @@ import { api } from './client'
 import type {
   AppDetail,
   AppSummary,
+  AppUsage,
   ChatMessage,
   ChatResponse,
+  DeleteResult,
   DeployRequest,
   GuestLoginRequest,
   GuestToken,
@@ -32,6 +34,44 @@ export function useDeploy() {
   return useMutation({
     mutationFn: (request: DeployRequest) => api.post<AppSummary>('/api/apps', request),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['apps'] }),
+  })
+}
+
+/** After any change to an app: the list and the app's own page show the new state. */
+function useAppMutation<TArgs, TResult>(mutationFn: (args: TArgs) => Promise<TResult>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['apps'] }),
+  })
+}
+
+export function useArchive(slug: string) {
+  return useAppMutation(() => api.post<AppSummary>(`/api/apps/${slug}/archive`, {}))
+}
+
+export function useRestore(slug: string) {
+  return useAppMutation(() => api.post<AppSummary>(`/api/apps/${slug}/restore`, {}))
+}
+
+export function useReplaceHtml(slug: string) {
+  return useAppMutation((html: string) => api.put<AppSummary>(`/api/apps/${slug}/html`, { html }))
+}
+
+export function useDeleteApp(slug: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.delete<DeleteResult>(`/api/apps/${slug}?confirm=${encodeURIComponent(slug)}`),
+    // Only the list: the deleted app's page is left right after, and refetching it would just 404.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['apps'], exact: true }),
+  })
+}
+
+export function useAppUsage(slug: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['apps', slug, 'usage'],
+    queryFn: () => api.get<AppUsage>(`/api/apps/${slug}/usage`),
+    enabled,
   })
 }
 

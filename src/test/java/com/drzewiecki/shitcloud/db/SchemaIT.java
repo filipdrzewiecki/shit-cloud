@@ -15,7 +15,7 @@ class SchemaIT extends IntegrationTest {
         List<String> applied = jdbc.sql("select version from flyway_schema_history where success order by installed_rank")
                 .query(String.class).list();
 
-        assertThat(applied).contains("1");
+        assertThat(applied).contains("1", "2");
     }
 
     @Test

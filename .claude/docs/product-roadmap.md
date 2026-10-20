@@ -83,7 +83,9 @@ HTML with CDN libs + localStorage is imported and works.
 
 **Done when:** the pilot team built at least one app nobody asked them to build.
 
-- [ ] **SHC-0014 — App lifecycle.** 30-day automatic archiving, archived filter (manual archive/delete moved to SHC-0019).
+- [ ] **SHC-0014 — App lifecycle.** 30-day automatic archiving (manual archive/restore/delete came with SHC-0019;
+  since then opening an archived app no longer restores it — auto-archived apps need Restore too, or a separate
+  "auto" state decided here).
 - [ ] **SHC-0015 — Token limits.** Daily limit per builder, usage counters, admin view.
 - [ ] **SHC-0016 — ZIP upload + full library mirror.**
 - [ ] **SHC-0017 — Backups & pilot readiness.** `mongodump` to a bucket, one tested restore, vendor

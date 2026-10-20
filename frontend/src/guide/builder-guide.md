@@ -225,4 +225,6 @@ try {
 ## Deploying (for the person, not the AI)
 
 In ShitCloud: **Upload** → choose the file → name it → **Deploy**. The name decides the app's address and its
-data: deploy a new version **under the same name** to keep the data. Earlier versions are kept for 90 days.
+data. To change an app later, open it → **⋯ Manage → Replace HTML…** (or deploy again under the same name): the
+data stays. Earlier versions are kept for 90 days. The same menu downloads the app's HTML and its data (JSON),
+archives an app (hidden, data kept, restorable) or deletes it together with its data.

@@ -1,4 +1,5 @@
 import { currentGuest } from '../auth/guestSession'
+import { fileNameFromDisposition } from '../lib/download'
 
 /**
  * The API is a separate service on its own origin, so every path in `api/` is
@@ -73,7 +74,8 @@ interface RequestOptions {
   anonymous?: boolean
 }
 
-async function request<T>(method: Method, path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
+/** Sends the request and turns every failure into an ApiError; the caller reads the body. */
+async function send(method: Method, path: string, body?: unknown, options: RequestOptions = {}): Promise<Response> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (!options.anonymous) headers.Authorization = `Bearer ${await bearer()}`
@@ -101,12 +103,22 @@ async function request<T>(method: Method, path: string, body?: unknown, options:
     }
     throw new ApiError(response.status, `${response.status} ${detail}`)
   }
+  return response
+}
 
-  return (await response.json()) as T
+async function request<T>(method: Method, path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
+  return (await (await send(method, path, body, options)).json()) as T
+}
+
+/** A file from the API (it needs the token, so a plain link cannot fetch it), with the name the server gave it. */
+async function download(path: string): Promise<{ blob: Blob; fileName: string | null }> {
+  const response = await send('GET', path)
+  return { blob: await response.blob(), fileName: fileNameFromDisposition(response.headers.get('Content-Disposition')) }
 }
 
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
+  download,
   post: <T>(path: string, body: unknown, options?: RequestOptions) => request<T>('POST', path, body, options),
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
   delete: <T>(path: string) => request<T>('DELETE', path),

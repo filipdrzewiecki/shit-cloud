@@ -152,8 +152,13 @@ Every endpoint requires `Authorization: Bearer <token>` (Auth0 or guest) unless 
 | POST | `/api/auth/guest` | public | `{password, name}` → `{token, expiresAt}`; 401 wrong password, 429 too many failures, 404 disabled |
 | GET  | `/api/me` | signed in | Caller: `{id, displayName, groups, builder, admin, guest}` |
 | GET  | `/api/apps` | signed in | List apps, most recently used first |
-| GET  | `/api/apps/{slug}` | signed in | App + HTML + `frameUrl` (on the apps origin); marks it used, un-archives |
-| POST | `/api/apps` | builder | Deploy `{name, description?, html}`; same name → new version (kept 90 days in `app_versions`); owner = creator, `updatedBy` = caller; 413 over 5 MB, 409 concurrent deploy |
+| GET  | `/api/apps/{slug}` | signed in | App + HTML + `frameUrl` (on the apps origin); marks it used (an archived app stays archived) |
+| POST | `/api/apps` | builder | Deploy `{name, description?, html}`; same name → new version (kept 90 days in `app_versions`); owner = creator, `updatedBy` = caller; 413 over 5 MB, 409 concurrent deploy; un-archives an archived app |
+| POST | `/api/apps/{slug}/archive` · `/restore` | builder | Hide from the list (data, HTML, versions kept; `archivedAt/By` recorded) · bring back |
+| PUT  | `/api/apps/{slug}/html` | builder | `{html}` → next version of that app; name, description, archive state and data unchanged |
+| DELETE | `/api/apps/{slug}?confirm={slug}` | builder | Irreversible: app, versions, documents and history → `{documents, versions, history}`; wrong `confirm` → 400 |
+| GET  | `/api/apps/{slug}/usage` | signed in | `{documents, collections, versions}` (shown before deleting) |
+| GET  | `/api/apps/{slug}/export` | signed in | All the app's documents by collection → download `<slug>-data.json` (cap `data.max-export-documents`, 413 above) |
 | POST | `/api/chat` | builder | Mock chat reply + draft HTML |
 | POST | `/api/data/{space}/{collection}/query` | signed in | `{filter?, sort?, limit?}` → `[DocView]`; Mongo-style filter, whitelisted operators only (translated to SQL on JSONB) |
 | PUT  | `/api/data/{space}/{collection}/{id}` | signed in | `{data, expectedVersion?}` → `DocView`; previous state → `doc_history`; last write wins unless `expectedVersion` (409 `VERSION_CONFLICT`) |

@@ -5,8 +5,9 @@ import java.time.Instant;
 /**
  * One app in the registry ({@code apps}) with its current HTML. Earlier versions are in {@link AppVersion}.
  *
- * @param owner     who created the app; a redeploy by someone else does not change it
- * @param updatedBy who deployed the current version
+ * @param owner      who created the app; a redeploy by someone else does not change it
+ * @param updatedBy  who deployed the current version
+ * @param archivedAt when the app was archived (hidden from the list, data kept); null while it is live
  */
 public record AppRecord(
         String slug,
@@ -19,9 +20,11 @@ public record AppRecord(
         boolean archived,
         Instant createdAt,
         Instant updatedAt,
-        String updatedBy) {
+        String updatedBy,
+        Instant archivedAt,
+        String archivedBy) {
 
     public AppSummary summary() {
-        return new AppSummary(slug, name, description, owner, lastUsedAt, archived, version);
+        return new AppSummary(slug, name, description, owner, lastUsedAt, archived, version, archivedAt, archivedBy);
     }
 }

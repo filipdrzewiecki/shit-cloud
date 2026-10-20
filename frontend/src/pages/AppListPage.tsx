@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useApps, useMe } from '../api/queries'
+import { useApps, useMe, useRestore } from '../api/queries'
+import type { AppSummary } from '../api/types'
 import { timeAgo } from '../lib/time'
 
 export function AppListPage() {
@@ -56,23 +57,40 @@ export function AppListPage() {
 
       <div className="grid">
         {visible.map((app) => (
-          <Link key={app.slug} to={`/apps/${app.slug}`} className={`card ${app.archived ? 'archived' : ''}`}>
-            <div className="card-title">
-              <span>{app.name}</span>
-              {app.archived && <span className="badge muted-badge">archived</span>}
-            </div>
-            <p className="card-desc">{app.description || <i>No description</i>}</p>
-            <div className="card-meta">
-              <span>{app.owner}</span>
-              <span>·</span>
-              <span>v{app.version}</span>
-              <span>·</span>
-              <span>used {timeAgo(app.lastUsedAt)}</span>
-            </div>
-          </Link>
+          <div key={app.slug} className="card-wrap">
+            <Link to={`/apps/${app.slug}`} className={`card ${app.archived ? 'archived' : ''}`}>
+              <div className="card-title">
+                <span>{app.name}</span>
+                {app.archived && <span className="badge muted-badge">archived</span>}
+              </div>
+              <p className="card-desc">{app.description || <i>No description</i>}</p>
+              <div className="card-meta">
+                <span>{app.owner}</span>
+                <span>·</span>
+                <span>v{app.version}</span>
+                <span>·</span>
+                <span>used {timeAgo(app.lastUsedAt)}</span>
+              </div>
+            </Link>
+            {app.archived && me.data?.builder && <RestoreButton app={app} />}
+          </div>
         ))}
         {apps.isSuccess && visible.length === 0 && <p className="muted">No apps match.</p>}
       </div>
     </section>
+  )
+}
+
+/** Outside the card's link: a button inside a link is not valid HTML, and a click must not open the app. */
+function RestoreButton({ app }: { app: AppSummary }) {
+  const restore = useRestore(app.slug)
+  return (
+    <div className="card-restore">
+      {app.archivedBy && <span className="muted">archived by {app.archivedBy}</span>}
+      <button type="button" className="button" disabled={restore.isPending} onClick={() => restore.mutate()}>
+        {restore.isPending ? 'Restoring…' : '↺ Restore'}
+      </button>
+      {restore.isError && <span className="error-text">{restore.error.message}</span>}
+    </div>
   )
 }

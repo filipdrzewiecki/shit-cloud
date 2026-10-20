@@ -65,17 +65,18 @@ public class SampleAppSeeder implements ApplicationRunner {
                                     Instant lastUsedAt, boolean archived, int version) {
         String html = readSample(slug);
         return new AppRecord(slug, name, description, html, owner, version, lastUsedAt, archived,
-                lastUsedAt, lastUsedAt, owner);
+                lastUsedAt, lastUsedAt, owner, archived ? lastUsedAt : null, archived ? owner : null);
     }
 
     private void insert(AppRecord app) {
         jdbc.sql("""
                         insert into apps (slug, name, description, html, owner, version, last_used_at, archived,
-                                          created_at, updated_at, updated_by)
-                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""")
+                                          created_at, updated_at, updated_by, archived_at, archived_by)
+                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""")
                 .params(app.slug(), app.name(), app.description(), app.html(), app.owner(), app.version(),
                         Timestamps.of(app.lastUsedAt()), app.archived(), Timestamps.of(app.createdAt()),
-                        Timestamps.of(app.updatedAt()), app.updatedBy())
+                        Timestamps.of(app.updatedAt()), app.updatedBy(), Timestamps.of(app.archivedAt()),
+                        app.archivedBy())
                 .update();
     }
 

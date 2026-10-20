@@ -6,6 +6,21 @@ export interface AppSummary {
   lastUsedAt: string
   archived: boolean
   version: number
+  /** When a builder archived the app; null while it is live. */
+  archivedAt: string | null
+  archivedBy: string | null
+}
+
+export interface AppUsage {
+  documents: number
+  collections: number
+  versions: number
+}
+
+export interface DeleteResult {
+  documents: number
+  versions: number
+  history: number
 }
 
 export interface AppDetail {
