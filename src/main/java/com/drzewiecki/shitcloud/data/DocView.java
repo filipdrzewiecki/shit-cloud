@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.Map;
 
 /**
- * A document as the Data API returns it; {@code id} is the app's id, not Mongo's.
+ * A document as the Data API returns it; {@code id} is the app's id, not the row's.
  */
 public record DocView(
         String id,

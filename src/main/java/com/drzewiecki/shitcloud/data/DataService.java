@@ -1,38 +1,37 @@
 package com.drzewiecki.shitcloud.data;
 
+import com.drzewiecki.shitcloud.db.Timestamps;
 import com.drzewiecki.shitcloud.service.AppRegistry;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mongodb.MongoException;
-import com.mongodb.client.result.DeleteResult;
-import com.mongodb.client.result.UpdateResult;
-import org.bson.Document;
-import org.bson.types.ObjectId;
-import org.springframework.dao.DataAccessException;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.mongodb.MongoTransactionManager;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.BasicQuery;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.Supplier;
 import java.util.regex.Pattern;
-
-import static org.springframework.data.mongodb.core.query.Criteria.where;
 
 /**
  * The Data API: every app's documents in {@code docs}, partitioned by space (the app's slug) and collection.
- * Before a document is changed or removed, its previous state goes to {@code _history} in the same
+ * Before a document is changed or removed, its previous state goes to {@code doc_history} in the same
  * transaction, so a write never happens without its history entry.
+ *
+ * <p>A write first locks the document's row ({@code FOR UPDATE}). Two people changing one document at once are
+ * served one after the other, each replacing what the other just wrote, so every replaced state gets exactly one
+ * history row and nobody has to retry.
  *
  * <p>The space is trusted as given: it comes from the host page, which takes it from the app it shows, never
  * from the app's message. It must name an existing app.
@@ -43,169 +42,170 @@ public class DataService {
     private static final Pattern COLLECTION = Pattern.compile("[A-Za-z0-9_-]{1,64}");
     private static final Pattern DOC_ID = Pattern.compile("[A-Za-z0-9_.:@-]{1,128}");
     private static final int MAX_DATA_DEPTH = 32;
-    private static final int ATTEMPTS = 5;
-    private static final int WRITE_CONFLICT = 112;
+    private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {
+    };
 
-    private final MongoTemplate mongo;
+    private final JdbcClient jdbc;
     private final TransactionTemplate transaction;
     private final AppRegistry appRegistry;
     private final DataProperties properties;
     private final ObjectMapper json;
+    private final RowMapper<DocRecord> docMapper;
 
-    public DataService(MongoTemplate mongo, MongoTransactionManager transactionManager, AppRegistry appRegistry,
+    public DataService(JdbcClient jdbc, PlatformTransactionManager transactionManager, AppRegistry appRegistry,
                        DataProperties properties, ObjectMapper json) {
-        this.mongo = mongo;
+        this.jdbc = jdbc;
         this.transaction = new TransactionTemplate(transactionManager);
         this.appRegistry = appRegistry;
         this.properties = properties;
         this.json = json;
+        this.docMapper = (row, i) -> new DocRecord(
+                row.getLong("id"),
+                row.getString("space"),
+                row.getString("collection"),
+                row.getString("doc_id"),
+                readJson(row.getString("data")),
+                row.getLong("version"),
+                row.getString("created_by"),
+                Timestamps.read(row, "created_at"),
+                row.getString("updated_by"),
+                Timestamps.read(row, "updated_at"));
     }
 
     public List<DocView> query(String space, String collection, DataQuery request) {
         requireCollection(space, collection);
         DataQuery query = request == null ? new DataQuery(null, null, null) : request;
 
-        Document filter = FilterTranslator.filter(query.filter())
-                .append("space", space)
-                .append("collection", collection);
-        Document sort = FilterTranslator.sort(query.sort());
-        if (sort.isEmpty()) {
-            sort.append("createdAt", 1);
-        }
-        // Ties broken by insertion order, so paging through equal values is stable.
-        sort.putIfAbsent("_id", 1);
+        FilterTranslator.Sql where = FilterTranslator.where(query.filter());
+        FilterTranslator.Sql order = FilterTranslator.orderBy(query.sort());
+        // Without a sort: oldest first. Always ending on id keeps paging through equal values stable.
+        String orderBy = (order.isEmpty() ? "" : order.text() + ", ") + "created_at, id";
 
-        BasicQuery mongoQuery = new BasicQuery(filter);
-        mongoQuery.setSortObject(sort);
-        mongoQuery.limit(limit(query.limit()));
-        return mongo.find(mongoQuery, DocRecord.class).stream().map(DocView::of).toList();
+        List<Object> params = new ArrayList<>(List.of(space, collection));
+        params.addAll(where.params());
+        params.addAll(order.params());
+        params.add(limit(query.limit()));
+        return jdbc.sql("select * from docs where space = ? and collection = ? and " + where.text()
+                        + " order by " + orderBy + " limit ?")
+                .params(params)
+                .query(docMapper)
+                .stream()
+                .map(DocView::of)
+                .toList();
     }
 
     /**
-     * Creates or replaces a document. Without {@code expectedVersion} the last write wins: losing a race with
-     * another writer just means trying again, and every replaced state is still kept in history.
+     * Creates or replaces a document. Without {@code expectedVersion} the last write wins; every replaced state is
+     * still kept in history. {@code expectedVersion} 0 means "only if it does not exist yet".
      */
     public DocView set(String space, String collection, String docId, DataWrite write, String caller) {
         requireCollection(space, collection);
         requireDocId(docId);
         Map<String, Object> data = cleanData(write == null ? null : write.data());
         Long expected = write.expectedVersion();
-        return withRetries(expected, () -> transaction.execute(status ->
-                setOnce(space, collection, docId, data, expected, caller)));
+        return transaction.execute(status -> setLocked(space, collection, docId, data, expected, caller));
     }
 
     /** Creates a document under a new id that sorts by creation time. */
     public DocView add(String space, String collection, DataWrite write, String caller) {
         requireCollection(space, collection);
         Map<String, Object> data = cleanData(write == null ? null : write.data());
-        Instant now = Instant.now();
-        DocRecord doc = new DocRecord(null, space, collection, new ObjectId().toHexString(), data, 1,
-                caller, now, caller, now);
-        return DocView.of(mongo.insert(doc));
+        OffsetDateTime now = Timestamps.of(Instant.now());
+        return DocView.of(jdbc.sql("""
+                        insert into docs (space, collection, doc_id, data, version, created_by, created_at,
+                                          updated_by, updated_at)
+                        values (?, ?, ?, ?::jsonb, 1, ?, ?, ?, ?)
+                        returning *""")
+                .params(space, collection, newId(), writeJson(data), caller, now, caller, now)
+                .query(docMapper)
+                .single());
     }
 
     /** Removes a document; its last state stays in history. False when there was nothing to remove. */
     public boolean remove(String space, String collection, String docId, Long expectedVersion, String caller) {
         requireCollection(space, collection);
         requireDocId(docId);
-        return withRetries(expectedVersion, () -> transaction.execute(status ->
-                removeOnce(space, collection, docId, expectedVersion, caller)));
-    }
-
-    private DocView setOnce(String space, String collection, String docId, Map<String, Object> data,
-                            Long expected, String caller) {
-        Instant now = Instant.now();
-        DocRecord current = mongo.findOne(byDocId(space, collection, docId), DocRecord.class);
-        if (current == null) {
-            requireVersion(expected, 0);
-            DocRecord doc = new DocRecord(null, space, collection, docId, data, 1, caller, now, caller, now);
-            return DocView.of(mongo.insert(doc));
-        }
-        requireVersion(expected, current.version());
-
-        mongo.insert(HistoryRecord.of(current, "update", caller, now));
-        Update update = new Update()
-                .set("data", data)
-                .set("version", current.version() + 1)
-                .set("updatedBy", caller)
-                .set("updatedAt", now);
-        UpdateResult result = mongo.updateFirst(sameVersion(current), update, DocRecord.class);
-        if (result.getMatchedCount() == 0) {
-            throw new LostRace();
-        }
-        return DocView.of(new DocRecord(current.id(), space, collection, docId, data, current.version() + 1,
-                current.createdBy(), current.createdAt(), caller, now));
-    }
-
-    private boolean removeOnce(String space, String collection, String docId, Long expected, String caller) {
-        DocRecord current = mongo.findOne(byDocId(space, collection, docId), DocRecord.class);
-        if (current == null) {
-            requireVersion(expected, 0);
-            return false;
-        }
-        requireVersion(expected, current.version());
-
-        mongo.insert(HistoryRecord.of(current, "delete", caller, Instant.now()));
-        DeleteResult result = mongo.remove(sameVersion(current), DocRecord.class);
-        if (result.getDeletedCount() == 0) {
-            throw new LostRace();
-        }
-        return true;
-    }
-
-    /**
-     * Runs a write until it does not collide with a concurrent one. A collision surfaces as a write conflict or
-     * transient transaction error (both writers in a transaction), a duplicate key (both inserting) or a
-     * version-conditional write matching nothing. With an expected version a collision is final.
-     */
-    private <T> T withRetries(Long expectedVersion, Supplier<T> write) {
-        for (int attempt = 1; ; attempt++) {
-            try {
-                return write.get();
-            } catch (LostRace | DataAccessException e) {
-                if (e instanceof DataAccessException dataAccess && !isConflict(dataAccess)) {
-                    throw dataAccess;
-                }
-                if (expectedVersion != null) {
-                    throw versionConflict();
-                }
-                if (attempt == ATTEMPTS) {
-                    throw new DataException(HttpStatus.CONFLICT, DataException.CONFLICT,
-                            "Too many people are changing this document right now, try again");
-                }
-                backOff(attempt);
+        Boolean removed = transaction.execute(status -> {
+            DocRecord current = lock(space, collection, docId).orElse(null);
+            if (current == null) {
+                requireVersion(expectedVersion, 0);
+                return false;
             }
-        }
-    }
-
-    /** Writers that collided would collide again if they retried in step; a random pause splits them up. */
-    private static void backOff(int attempt) {
-        try {
-            Thread.sleep(ThreadLocalRandom.current().nextLong(5, 20) * attempt);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new DataException(HttpStatus.CONFLICT, DataException.CONFLICT, "Interrupted, try again");
-        }
-    }
-
-    private static boolean isConflict(DataAccessException e) {
-        if (e instanceof DuplicateKeyException) {
+            requireVersion(expectedVersion, current.version());
+            writeHistory(current, "delete", caller, Instant.now());
+            jdbc.sql("delete from docs where id = ?").param(current.id()).update();
             return true;
+        });
+        return Boolean.TRUE.equals(removed);
+    }
+
+    private DocView setLocked(String space, String collection, String docId, Map<String, Object> data,
+                              Long expected, String caller) {
+        OffsetDateTime now = Timestamps.of(Instant.now());
+        Optional<DocRecord> current = lock(space, collection, docId);
+        if (current.isEmpty()) {
+            requireVersion(expected, 0);
+            // A writer creating the same document concurrently makes this insert wait for it, then do nothing;
+            // the document then exists and is replaced below like any other.
+            Optional<DocRecord> inserted = jdbc.sql("""
+                            insert into docs (space, collection, doc_id, data, version, created_by, created_at,
+                                              updated_by, updated_at)
+                            values (?, ?, ?, ?::jsonb, 1, ?, ?, ?, ?)
+                            on conflict (space, collection, doc_id) do nothing
+                            returning *""")
+                    .params(space, collection, docId, writeJson(data), caller, now, caller, now)
+                    .query(docMapper)
+                    .optional();
+            if (inserted.isPresent()) {
+                return DocView.of(inserted.get());
+            }
+            current = lock(space, collection, docId);
         }
-        return e.getMostSpecificCause() instanceof MongoException mongoException
-                && (mongoException.getCode() == WRITE_CONFLICT
-                || mongoException.hasErrorLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL));
+        DocRecord previous = current.orElseThrow();
+        requireVersion(expected, previous.version());
+
+        writeHistory(previous, "update", caller, now.toInstant());
+        return DocView.of(jdbc.sql("""
+                        update docs set data = ?::jsonb, version = version + 1, updated_by = ?, updated_at = ?
+                        where id = ?
+                        returning *""")
+                .params(writeJson(data), caller, now, previous.id())
+                .query(docMapper)
+                .single());
+    }
+
+    /** The document, its row locked until the transaction ends. */
+    private Optional<DocRecord> lock(String space, String collection, String docId) {
+        return jdbc.sql("select * from docs where space = ? and collection = ? and doc_id = ? for update")
+                .params(space, collection, docId)
+                .query(docMapper)
+                .optional();
+    }
+
+    private void writeHistory(DocRecord previous, String op, String changedBy, Instant changedAt) {
+        HistoryRecord entry = HistoryRecord.of(previous, op, changedBy, changedAt);
+        jdbc.sql("""
+                        insert into doc_history (space, collection, doc_id, version, op, data, updated_by,
+                                                 updated_at, changed_by, changed_at)
+                        values (?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?)""")
+                .params(entry.space(), entry.collection(), entry.docId(), entry.version(), entry.op(),
+                        writeJson(entry.data()), entry.updatedBy(), Timestamps.of(entry.updatedAt()),
+                        entry.changedBy(), Timestamps.of(entry.changedAt()))
+                .update();
+    }
+
+    /** 24 hex characters: seconds since the epoch, then randomness — same shape and order as a Mongo ObjectId. */
+    static String newId() {
+        byte[] random = new byte[8];
+        ThreadLocalRandom.current().nextBytes(random);
+        return "%08x".formatted(Instant.now().getEpochSecond()) + HexFormat.of().formatHex(random);
     }
 
     private static void requireVersion(Long expected, long actual) {
         if (expected != null && expected != actual) {
-            throw versionConflict();
+            throw new DataException(HttpStatus.CONFLICT, DataException.VERSION_CONFLICT,
+                    "The document was changed by someone else; read it again");
         }
-    }
-
-    private static DataException versionConflict() {
-        return new DataException(HttpStatus.CONFLICT, DataException.VERSION_CONFLICT,
-                "The document was changed by someone else; read it again");
     }
 
     private int limit(Integer requested) {
@@ -248,7 +248,7 @@ public class DataService {
             }
         });
         checkNames(clean, 1);
-        long size = jsonSize(clean);
+        long size = writeJson(clean).getBytes(StandardCharsets.UTF_8).length;
         if (size > properties.maxDocSize().toBytes()) {
             throw new DataException(HttpStatus.PAYLOAD_TOO_LARGE, DataException.TOO_LARGE,
                     "A document can be at most " + properties.maxDocSize().toKilobytes() + " KB");
@@ -256,7 +256,7 @@ public class DataService {
         return clean;
     }
 
-    /** Mongo cannot query by names with dots or a leading $, so they are refused at any depth. */
+    /** Filters cannot address names with dots or a leading $, so they are refused at any depth. */
     private static void checkNames(Object value, int depth) {
         if (depth > MAX_DATA_DEPTH) {
             throw DataException.badRequest("data is nested deeper than " + MAX_DATA_DEPTH + " levels");
@@ -274,26 +274,19 @@ public class DataService {
         }
     }
 
-    private long jsonSize(Map<String, Object> data) {
+    private String writeJson(Map<String, Object> data) {
         try {
-            return json.writeValueAsBytes(data).length;
+            return json.writeValueAsString(data);
         } catch (JsonProcessingException e) {
             throw DataException.badRequest("data cannot be stored: " + e.getOriginalMessage());
         }
     }
 
-    private static Query byDocId(String space, String collection, String docId) {
-        return new Query(where("space").is(space).and("collection").is(collection).and("docId").is(docId));
-    }
-
-    private static Query sameVersion(DocRecord doc) {
-        return new Query(where("_id").is(new ObjectId(doc.id())).and("version").is(doc.version()));
-    }
-
-    /** A version-conditional write found the document already changed by someone else. */
-    private static final class LostRace extends RuntimeException {
-        LostRace() {
-            super(null, null, false, false);
+    private Map<String, Object> readJson(String text) {
+        try {
+            return json.readValue(text, MAP);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Stored data is not valid JSON", e);
         }
     }
 }

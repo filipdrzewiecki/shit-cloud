@@ -84,7 +84,15 @@ All calls are **async** (return Promises) — always `await` them and handle err
   `$eq $ne $gt $gte $lt $lte $in $nin $exists`, `$and` / `$or`, dotted paths for nested fields
   (`{ 'address.city': 'Kraków' }`). **Not allowed:** `$regex`, `$where`, `$expr` and anything else — for text
   search, load the documents and filter in JavaScript.
-- Special fields you may filter/sort on: `id`, `_updatedAt`, `_updatedBy`.
+- How values compare (same as MongoDB):
+  - equality on an **array** field also matches arrays that **contain** the value (`{ tags: 'x' }` finds
+    `tags: ['x', 'y']`);
+  - `{ field: null }` matches documents where the field is `null` **or missing**; `$ne` / `$nin` also match
+    documents without the field;
+  - `$gt`/`$gte`/`$lt`/`$lte` compare a string with strings, a number with numbers (text by character code:
+    `'B' < 'a'`) — `'10'` (text) is not greater than `9` (number). Store numbers as numbers.
+- Special fields you may filter/sort on: `id`, `_updatedAt` (compare with an ISO date-time text such as
+  `'2026-10-20T08:00:00Z'`), `_updatedBy`.
 - `sort`: `{ field: 1 | -1 }`, at most 4 fields. Without it: oldest first.
 - `limit`: 1–1000, default 1000. **One query returns at most 1000 documents.** If a collection can grow beyond
   that, page through it:

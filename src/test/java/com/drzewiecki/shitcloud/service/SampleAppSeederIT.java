@@ -1,13 +1,13 @@
 package com.drzewiecki.shitcloud.service;
 
 import com.drzewiecki.shitcloud.IntegrationTest;
-import com.drzewiecki.shitcloud.model.AppRecord;
 import com.drzewiecki.shitcloud.model.DeployRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.unit.DataSize;
 
 import java.time.Duration;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -19,7 +19,7 @@ class SampleAppSeederIT extends IntegrationTest {
     private SampleAppSeeder seeder() {
         AppsProperties enabled = new AppsProperties(Duration.ofDays(90), DataSize.ofMegabytes(5), true, 8081,
                 "http://apps.test/{slug}/");
-        return new SampleAppSeeder(mongo, enabled);
+        return new SampleAppSeeder(jdbc, enabled);
     }
 
     @Test
@@ -27,9 +27,7 @@ class SampleAppSeederIT extends IntegrationTest {
         seeder().seedIfEmpty();
         seeder().seedIfEmpty();
 
-        assertThat(mongo.findAll(AppRecord.class))
-                .extracting(AppRecord::slug)
-                .containsExactlyInAnyOrder("presence-calendar", "lunch-poll", "parking-spots", "secret-santa-2025");
+        assertThat(slugs()).containsExactlyInAnyOrder("presence-calendar", "lunch-poll", "parking-spots", "secret-santa-2025");
     }
 
     @Test
@@ -38,12 +36,16 @@ class SampleAppSeederIT extends IntegrationTest {
 
         seeder().seedIfEmpty();
 
-        assertThat(mongo.findAll(AppRecord.class)).extracting(AppRecord::slug).containsExactly("moja-apka");
+        assertThat(slugs()).containsExactly("moja-apka");
     }
 
     @Test
     void outsideTheDevProfile_seedingIsOff() {
         // The test context runs without the dev profile: startup must not have seeded anything.
-        assertThat(mongo.findById("lunch-poll", AppRecord.class)).isNull();
+        assertThat(slugs()).isEmpty();
+    }
+
+    private List<String> slugs() {
+        return jdbc.sql("select slug from apps").query(String.class).list();
     }
 }

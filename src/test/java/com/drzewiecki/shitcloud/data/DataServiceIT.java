@@ -2,13 +2,13 @@ package com.drzewiecki.shitcloud.data;
 
 import com.drzewiecki.shitcloud.IntegrationTest;
 import com.drzewiecki.shitcloud.model.DeployRequest;
-import com.drzewiecki.shitcloud.mongo.MongoCollections;
+import com.drzewiecki.shitcloud.db.Timestamps;
 import com.drzewiecki.shitcloud.service.AppRegistry;
-import org.bson.Document;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.mongodb.core.query.Query;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +20,6 @@ import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.springframework.data.mongodb.core.query.Criteria.where;
 
 class DataServiceIT extends IntegrationTest {
 
@@ -31,6 +30,9 @@ class DataServiceIT extends IntegrationTest {
 
     @Autowired
     private AppRegistry appRegistry;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @BeforeEach
     void deployTheApp() {
@@ -87,15 +89,14 @@ class DataServiceIT extends IntegrationTest {
     @Test
     void failedHistoryWrite_rollsTheChangeBack() {
         set("a", Map.of("n", 1), "guest:Anna");
-        // Every history insert now fails validation, after the document was read but before it is written.
-        mongo.executeCommand(new Document("collMod", MongoCollections.HISTORY)
-                .append("validator", new Document("op", new Document("$exists", false))));
+        // Every history insert now fails, after the document was locked but before it is written.
+        jdbc.sql("alter table doc_history add constraint no_history check (false) not valid").update();
         try {
             assertThatThrownBy(() -> set("a", Map.of("n", 2), "guest:Tomek")).isNotInstanceOf(DataException.class);
             assertThatThrownBy(() -> data.remove(APP, "days", "a", null, "guest:Tomek"))
                     .isNotInstanceOf(DataException.class);
         } finally {
-            mongo.executeCommand(new Document("collMod", MongoCollections.HISTORY).append("validator", new Document()));
+            jdbc.sql("alter table doc_history drop constraint no_history").update();
         }
 
         assertThat(find(null)).singleElement().satisfies(doc -> {
@@ -238,6 +239,21 @@ class DataServiceIT extends IntegrationTest {
     }
 
     private List<HistoryRecord> history() {
-        return mongo.find(new Query(where("space").is(APP)), HistoryRecord.class);
+        return jdbc.sql("select * from doc_history where space = ? order by id").param(APP)
+                .query((row, i) -> new HistoryRecord(row.getLong("id"), row.getString("space"),
+                        row.getString("collection"), row.getString("doc_id"), row.getLong("version"),
+                        row.getString("op"), map(row.getString("data")), row.getString("updated_by"),
+                        Timestamps.read(row, "updated_at"), row.getString("changed_by"),
+                        Timestamps.read(row, "changed_at")))
+                .list();
+    }
+
+    private Map<String, Object> map(String json) {
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {
+            });
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

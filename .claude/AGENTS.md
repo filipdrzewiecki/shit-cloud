@@ -40,13 +40,14 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
 - Backend (repo root): Java 21, Spring Boot 3.4, Maven
 - Frontend (`frontend/`): React 18 + Vite + TypeScript, react-router, TanStack Query; served by nginx
 - Hosting: Railway project `shitcloud`, environment `test`, two services built from `main`
-  (`api` from `/`, `frontend` from `/frontend`) plus `Mongo Single Replica` (template, `mongo:7`). Settings live in the Railway service config —
+  (`api` from `/`, `frontend` from `/frontend`) plus a `Postgres` database service. Settings live in the Railway service config —
   config-as-code `railway.json` is deprecated there.
-- Database: MongoDB 7, single-node replica set `rs0` (transactions), `MongoTemplate` only, no repositories.
-  `api` gets `MONGODB_URI` (private network, `replicaSet=rs0&authSource=admin`); no default, a missing
-  variable fails the start. Collections and indexes are created at startup (`mongo/MongoIndexes`).
-  Locally and in tests an embedded `mongod` (flapdoodle, **test scope only**) replaces it. Setup, Railway, querying,
-  traps: `.claude/docs/mongodb.md`
+- Database: PostgreSQL (Railway: 18), Spring `JdbcClient` with hand-written SQL only — no JPA, no repositories.
+  Schema by Flyway migrations in `resources/db/migration` (never change an applied one; add `V2__…`). App data is
+  JSONB. `api` gets `DATABASE_JDBC_URL`, `DATABASE_USER`, `DATABASE_PASSWORD` (references to the Postgres
+  service); no defaults, a missing one fails the start. Old versions/history are removed nightly by `db/ExpiryJob`
+  (no TTL indexes in Postgres). Locally and in tests an embedded PostgreSQL (zonky, **test scope only**) replaces it.
+  Setup, Railway, querying, traps: `.claude/docs/postgres.md`
 - Auth: two tiers. Builders/admins sign in through Auth0 (SPA + PKCE, API is a JWT resource server,
   roles from a token claim). Everyone else signs in with a shared password (`GUEST_PASSWORD`) and gets
   an API-issued guest token (1 day). Decisions, Auth0 setup, gotchas: `.claude/docs/auth.md`
@@ -56,8 +57,8 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
   `APPS_URL_PATTERN` (no default) places `{slug}` in the host (one origin per app, needs a wildcard domain)
   or the path (one shared apps origin — `test`). App names whose slug is `api`, `actuator` or `error` are refused.
   Details, CSP, Railway domains, gaps: `.claude/docs/app-origin.md`
-- App data: one `docs` collection (`space` = app slug, `collection`, `docId`, app fields under `data`),
-  earlier states in `_history` (same transaction, TTL 90 days). Apps reach it only through the SDK
+- App data: one `docs` table (`space` = app slug, `collection`, `doc_id`, app fields in the JSONB `data`),
+  earlier states in `doc_history` (same transaction, removed after 90 days). Apps reach it only through the SDK
   (`window.shitcloud.db` / `me()`) → `postMessage` → host page bridge (`shell/appBridge.ts`) → Data API.
   SDK, rules, limits, retries: `.claude/docs/data-api.md`
 - Planned (see roadmap): Spring AI + Claude
@@ -66,7 +67,7 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
 - All tasks are in `.claude/docs`, one folder per ticket: `.claude/docs/SHC-{number}-{short-name}/`
 - Finished tickets are **closed** (ask first): knowledge compacted into project `.md` files, the ticket
   folder removed, a short entry added to `.claude/project-log.md` — see "Closing the ticket" in the SDLC flow
-- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `mongodb.md`, `app-origin.md`, `data-api.md`
+- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `postgres.md`, `app-origin.md`, `data-api.md`
 - Ticket naming pattern: `SHC-{number}` (four digits, e.g. `SHC-0001`)
 
 ## MANDATORY — Ticket-based implementation rule
@@ -92,10 +93,10 @@ Locally the `dev` profile enables guest sign-in with the password `dev`. Builder
 `VITE_AUTH0_CLIENT_ID` in `frontend/.env.local`.
 
 The API runs through `DevApplication` (test classpath, `mvn spring-boot:test-run`), which starts an
-embedded `mongod` replica set — nothing to install; the first run downloads it (~100 MB, cached in
-`~/.embedmongo`). Its data is gone after every restart and the `dev` profile re-seeds the sample apps.
-If the API is killed hard, an orphaned `mongod.exe` may stay behind; it holds a random port, so it only
-costs memory.
+embedded PostgreSQL — nothing to install, no Docker; the binaries come from Maven (`embedded-postgres-binaries`)
+and unpack into `%TEMP%/embedded-pg`. Its data is gone after every restart and the `dev` profile re-seeds the
+sample apps. If the API is killed hard, orphaned `postgres.exe` processes may stay behind on a random port; they
+only cost memory (stop them in Task Manager).
 
 ## Testing
 
@@ -114,19 +115,20 @@ code and report findings. Compiling (`mvn -q compile`) and typechecking the fron
 src/main/java/com/drzewiecki/shitcloud/
   Application.java
   controller/      AppController, ChatController, MeController, GuestLoginController, DataController
-  data/            DataService (docs + _history, transactions, retries), FilterTranslator (operator whitelist),
+  data/            DataService (docs + doc_history, row locks), FilterTranslator (Mongo-style filter → SQL on JSONB),
                    DataProperties, records, DataException + DataExceptionHandler ({code, message} bodies)
   apps/            the apps port: AppsConnectorConfig (2nd Tomcat connector), PortFence, AppsSecurityConfig
                    (own filter chain, framing allowed), AppOrigin (url pattern), AppDocumentController (CSP),
                    SdkInjector, LibraryMirrorConfig
-  model/           request/response records; Mongo documents AppRecord (_apps), AppVersion (_app_versions)
+  model/           request/response records; rows AppRecord (apps), AppVersion (app_versions)
   security/        SecurityConfig (two token issuers, CORS), AuthProperties, converters, GuestTokenService,
                    LoginAttemptLimiter, AuthenticationUtils.currentUser()
-  mongo/           MongoConfig (transaction manager), MongoCollections (names), MongoIndexes (startup)
-  service/         AppRegistry (_apps + _app_versions), SampleAppSeeder (dev only), AppsProperties,
+  db/              ExpiryJob (nightly removal past retention), Timestamps (timestamptz ↔ Instant)
+  service/         AppRegistry (apps + app_versions), SampleAppSeeder (dev only), AppsProperties,
                    MockChatService, GuestLoginService
 src/main/resources/
   application.properties, application-dev.properties
+  db/migration/    Flyway SQL migrations (V1__schema.sql: apps, app_versions, docs, doc_history)
   sample-apps/     seed HTML apps for the mockup
   apps/sdk.js      inlined as the first script of every app document: window.shitcloud.me() / db.*
   apps-lib/        the library mirror served at /_lib/ + LICENSES.md (versions)
@@ -151,12 +153,12 @@ Every endpoint requires `Authorization: Bearer <token>` (Auth0 or guest) unless 
 | GET  | `/api/me` | signed in | Caller: `{id, displayName, groups, builder, admin, guest}` |
 | GET  | `/api/apps` | signed in | List apps, most recently used first |
 | GET  | `/api/apps/{slug}` | signed in | App + HTML + `frameUrl` (on the apps origin); marks it used, un-archives |
-| POST | `/api/apps` | builder | Deploy `{name, description?, html}`; same name → new version (kept 90 days in `_app_versions`); owner = creator, `updatedBy` = caller; 413 over 5 MB, 409 concurrent deploy |
+| POST | `/api/apps` | builder | Deploy `{name, description?, html}`; same name → new version (kept 90 days in `app_versions`); owner = creator, `updatedBy` = caller; 413 over 5 MB, 409 concurrent deploy |
 | POST | `/api/chat` | builder | Mock chat reply + draft HTML |
-| POST | `/api/data/{space}/{collection}/query` | signed in | `{filter?, sort?, limit?}` → `[DocView]`; whitelisted Mongo operators only |
-| PUT  | `/api/data/{space}/{collection}/{id}` | signed in | `{data, expectedVersion?}` → `DocView`; previous state → `_history`; last write wins unless `expectedVersion` (409 `VERSION_CONFLICT`) |
+| POST | `/api/data/{space}/{collection}/query` | signed in | `{filter?, sort?, limit?}` → `[DocView]`; Mongo-style filter, whitelisted operators only (translated to SQL on JSONB) |
+| PUT  | `/api/data/{space}/{collection}/{id}` | signed in | `{data, expectedVersion?}` → `DocView`; previous state → `doc_history`; last write wins unless `expectedVersion` (409 `VERSION_CONFLICT`) |
 | POST | `/api/data/{space}/{collection}` | signed in | `{data}` → 201 `DocView` with a generated id |
-| DELETE | `/api/data/{space}/{collection}/{id}` | signed in | `?expectedVersion=` → `{deleted}`; last state → `_history` |
+| DELETE | `/api/data/{space}/{collection}/{id}` | signed in | `?expectedVersion=` → `{deleted}`; last state → `doc_history` |
 
 Data API errors are `{code, message}` (`BAD_REQUEST`, `NO_SUCH_APP`, `VERSION_CONFLICT`, `CONFLICT`, `TOO_LARGE`);
 `space` must be an existing app. Guests read and write too.

@@ -1,6 +1,5 @@
 package com.drzewiecki.shitcloud;
 
-import com.drzewiecki.shitcloud.mongo.MongoCollections;
 import com.drzewiecki.shitcloud.security.AuthProperties;
 import com.drzewiecki.shitcloud.security.GuestTokenService;
 import com.drzewiecki.shitcloud.security.IdpUserConverter;
@@ -8,8 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
@@ -20,9 +18,9 @@ import java.util.List;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 
 /**
- * Full application context with MockMvc on an embedded mongod (see {@code EmbeddedMongoConfig}). Guest
+ * Full application context with MockMvc on an embedded PostgreSQL (see {@code EmbeddedPostgresConfig}). Guest
  * sign-in is enabled with a test password, apps are in path mode. Every test starts with an empty registry
- * and no app data; the indexes stay.
+ * and no app data; the schema stays.
  *
  * <p>Two ways to act as a caller:
  * <ul>
@@ -51,7 +49,7 @@ public abstract class IntegrationTest {
     protected MockMvc mvc;
 
     @Autowired
-    protected MongoTemplate mongo;
+    protected JdbcClient jdbc;
 
     @Autowired
     private AuthProperties authProperties;
@@ -64,10 +62,7 @@ public abstract class IntegrationTest {
 
     @BeforeEach
     void emptyTheRegistry() {
-        mongo.remove(new Query(), MongoCollections.APPS);
-        mongo.remove(new Query(), MongoCollections.APP_VERSIONS);
-        mongo.remove(new Query(), MongoCollections.DOCS);
-        mongo.remove(new Query(), MongoCollections.HISTORY);
+        jdbc.sql("truncate apps, app_versions, docs, doc_history restart identity cascade").update();
     }
 
     protected RequestPostProcessor builder() {

@@ -1,12 +1,13 @@
 package com.drzewiecki.shitcloud.service;
 
+import com.drzewiecki.shitcloud.db.Timestamps;
 import com.drzewiecki.shitcloud.model.AppRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -26,11 +27,11 @@ public class SampleAppSeeder implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(SampleAppSeeder.class);
 
-    private final MongoTemplate mongo;
+    private final JdbcClient jdbc;
     private final AppsProperties properties;
 
-    public SampleAppSeeder(MongoTemplate mongo, AppsProperties properties) {
-        this.mongo = mongo;
+    public SampleAppSeeder(JdbcClient jdbc, AppsProperties properties) {
+        this.jdbc = jdbc;
         this.properties = properties;
     }
 
@@ -42,7 +43,7 @@ public class SampleAppSeeder implements ApplicationRunner {
     }
 
     void seedIfEmpty() {
-        long existing = mongo.estimatedCount(AppRecord.class);
+        long existing = jdbc.sql("select count(*) from apps").query(Long.class).single();
         if (existing > 0) {
             return;
         }
@@ -56,7 +57,7 @@ public class SampleAppSeeder implements ApplicationRunner {
                         now.minus(Duration.ofDays(5)), false, 1),
                 sample("secret-santa-2025", "Losowanie prezentów 2025", "Secret Santa z zeszłego roku", "Anna",
                         now.minus(Duration.ofDays(290)), true, 3));
-        mongo.insertAll(samples);
+        samples.forEach(this::insert);
         log.info("Seeded {} sample apps", samples.size());
     }
 
@@ -65,6 +66,17 @@ public class SampleAppSeeder implements ApplicationRunner {
         String html = readSample(slug);
         return new AppRecord(slug, name, description, html, owner, version, lastUsedAt, archived,
                 lastUsedAt, lastUsedAt, owner);
+    }
+
+    private void insert(AppRecord app) {
+        jdbc.sql("""
+                        insert into apps (slug, name, description, html, owner, version, last_used_at, archived,
+                                          created_at, updated_at, updated_by)
+                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""")
+                .params(app.slug(), app.name(), app.description(), app.html(), app.owner(), app.version(),
+                        Timestamps.of(app.lastUsedAt()), app.archived(), Timestamps.of(app.createdAt()),
+                        Timestamps.of(app.updatedAt()), app.updatedBy())
+                .update();
     }
 
     static String readSample(String name) {

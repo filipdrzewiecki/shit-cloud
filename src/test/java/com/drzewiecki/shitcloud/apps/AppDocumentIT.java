@@ -2,9 +2,8 @@ package com.drzewiecki.shitcloud.apps;
 
 import com.drzewiecki.shitcloud.IntegrationTest;
 import com.drzewiecki.shitcloud.model.DeployRequest;
-import com.drzewiecki.shitcloud.mongo.MongoCollections;
+import com.drzewiecki.shitcloud.db.Timestamps;
 import com.drzewiecki.shitcloud.service.AppRegistry;
-import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,8 +13,6 @@ import java.time.Instant;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
-import static org.springframework.data.mongodb.core.query.Criteria.where;
-import static org.springframework.data.mongodb.core.query.Query.query;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -103,7 +100,8 @@ class AppDocumentIT extends IntegrationTest {
     }
 
     private Instant lastUsedAt() {
-        Document app = mongo.findOne(query(where("_id").is("lunch-poll")), Document.class, MongoCollections.APPS);
-        return app.getDate("lastUsedAt").toInstant();
+        return jdbc.sql("select last_used_at from apps where slug = 'lunch-poll'")
+                .query((row, i) -> Timestamps.read(row, "last_used_at"))
+                .single();
     }
 }

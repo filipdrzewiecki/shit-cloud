@@ -43,15 +43,15 @@ await shitcloud.db.remove('days', 'filip_2026-10-20');              // false whe
 
 ## Storage
 
-- `docs`: `{space, collection, docId, data: {…app fields…}, version, createdBy, createdAt, updatedBy, updatedAt}`,
-  unique `{space, collection, docId}` (also the index every query uses).
-- `_history`: the **previous** state (`version`, `data`, `updatedBy`, `updatedAt`) + `op` (`update`/`delete`),
-  `changedBy`, `changedAt`; TTL `data.history-ttl` (90d, changed via `collMod`), index `{space, collection, docId,
-  version}` for restore (SHC-0012).
-- `set`/`remove` run in a transaction: read → history insert → write **conditional on the version read**. A lost race
-  (write conflict 112, transient label, duplicate key, 0 matched) is retried up to 5× with a random 5–20 ms × attempt
-  pause — Mongo fails colliding transactions immediately, so in-step retries collide again. With `expectedVersion`
-  a collision is final (409 `VERSION_CONFLICT`). `expectedVersion: 0` = must not exist yet.
+PostgreSQL — tables, SQL and the filter translation are in `.claude/docs/postgres.md`.
+- `docs`: `space`, `collection`, `doc_id`, `data jsonb` (the app's fields), `version`, created/updated by/at;
+  unique `(space, collection, doc_id)` (also the index every query uses); `space` → `apps` foreign key.
+- `doc_history`: the **previous** state (`version`, `data`, `updated_by/at`) + `op` (`update`/`delete`),
+  `changed_by/at`; removed by `ExpiryJob` after `data.history-ttl` (90d); index `(space, collection, doc_id,
+  version)` for restore (SHC-0012).
+- `set`/`remove` run in a transaction that first locks the document's row (`FOR UPDATE`), then writes history,
+  then updates/deletes. Concurrent writers to one document queue up instead of failing, so there is no retry loop.
+  `expectedVersion` mismatch → 409 `VERSION_CONFLICT`; `expectedVersion: 0` = must not exist yet.
 - Last write wins by default (user decision); nothing is lost because every replaced state is in history.
 
 ## Rules and limits
@@ -60,9 +60,10 @@ await shitcloud.db.remove('days', 'filip_2026-10-20');              // false whe
   with curl has the same rights as through any app (accepted).
 - Everyone signed in reads and writes, **guests included**; writes record `guest:<name>` or the builder's email.
 - Filters (`FilterTranslator`): rebuilt from a whitelist — implicit equality, `$eq $ne $gt $gte $lt $lte $in $nin
-  $exists`, `$and`/`$or` at any level, dotted paths. App fields are moved under `data.`; `id`, `_updatedAt`,
-  `_updatedBy` map to platform fields; any other `_`/`$` name → 400. No `$regex` (ReDoS), no `$` inside values.
-  Depth ≤ 8, lists ≤ 500, sort ≤ 4 keys, default order `createdAt` then `_id`.
+  $exists`, `$and`/`$or` at any level, dotted paths — translated to parameterised SQL on the JSONB `data` with
+  MongoDB's meaning (array "contains", null = missing, type-bracketed ranges; details in `postgres.md`). `id`,
+  `_updatedAt`, `_updatedBy` map to columns; any other `_`/`$` name → 400. No `$regex` (ReDoS), no `$` inside
+  values. Depth ≤ 8, lists ≤ 500, sort ≤ 4 keys, default order `created_at` then `id`.
 - Collection `[A-Za-z0-9_-]{1,64}`, id `[A-Za-z0-9_.:@-]{1,128}`, `data` an object ≤ 256 KB (JSON bytes),
   nesting ≤ 32, field names without `.` or leading `$`. `limit` 1–1000 (default 1000).
 - Error bodies `{code, message}` come from `DataExceptionHandler`, scoped to `DataController` only — Spring's default
@@ -76,8 +77,9 @@ await shitcloud.db.remove('days', 'filip_2026-10-20');              // false whe
 
 ## Testing
 
-- `FilterTranslatorTest`; `DataServiceIT` (history, rollback via a `collMod` validator that rejects every history
-  insert, version guard, 3 concurrent writers → one history entry per replaced state); `DataControllerIT`.
+- `FilterTranslatorTest` (validation, no input in SQL text), `FilterSqlIT` (every operator's meaning on real
+  Postgres), `DataServiceIT` (history, rollback via a temporary `CHECK (false)` constraint, version guard, 3
+  concurrent writers → one history row per replaced state), `DataControllerIT`, `DataServiceTest` (ids).
 - Frontend: `npm test --prefix frontend` (Vitest, node env). `appBridge.test.ts` (accept rules, space from the route,
   error mapping) and `sdk.test.ts` (runs `sdk.js?raw` against hand-made windows). **jsdom is not used**: its
   `postMessage` never sets `event.source`, so it cannot exercise the SDK's source check.

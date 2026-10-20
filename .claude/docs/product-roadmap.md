@@ -35,6 +35,9 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] **SHC-0004 — Data API + bridge.** `docs` collection, whitelist filter → `Criteria`, upsert /
   delete with `_history` in the same transaction, optimistic `version`; host-page `postMessage`
   bridge with origin/source checks; `window.shitcloud.db` + `me()` in the SDK.
+- [~] **SHC-0018 — Switch from MongoDB to PostgreSQL (JSONB).** Owner's decision: Postgres replaces Mongo
+  everywhere (registry tables, app data as JSONB, Flyway, scheduled expiry, embedded Postgres locally); the SDK's
+  filter syntax stays. Numbered last, done before SHC-0005.
 - [ ] **SHC-0005 — Presence calendar end-to-end.** Hand-written calendar on the real SDK, two users,
   write-only-own-space rule, `updatedBy`. Phase 1 acceptance.
 
