@@ -23,7 +23,7 @@ export function AppListPage() {
         <div>
           <h1>Apps</h1>
           <p className="muted">
-            Simple Handy Internal Tools your team built. Disposable apps, durable data.
+            Simple HTML Internal Tools your team built. Disposable apps, durable data.
           </p>
         </div>
         {me.data?.builder && (

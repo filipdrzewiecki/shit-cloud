@@ -25,7 +25,7 @@ export function Layout() {
   return (
     <div className="shell">
       <header className="topbar">
-        <NavLink to="/" className="brand" title="Simple Handy Internal Tools">
+        <NavLink to="/" className="brand" title="Simple HTML Internal Tools">
           <span aria-hidden>☁️</span> S.H.I.T. Cloud
         </NavLink>
         <nav className="nav">
