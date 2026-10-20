@@ -2,6 +2,33 @@
 
 What each closed ticket delivered, newest first. Durable details live in the files each entry points to.
 
+## SHC-0019 — Manage a deployed app (closed 2026-10-20)
+
+- Builders archive (hidden, data kept, still opens with a Restore bar), restore, replace an app's HTML in place, and
+  delete an app with all its data and history (typed name + `?confirm=<slug>`); everyone signed in downloads the
+  HTML (`<name>.html`) and the data (`<slug>-data.json`, capped at 100 000 documents). Flyway `V2__archive.sql`.
+- Opening no longer un-archives; a deploy by name does. GUI: "⋯ Manage" menu on the host page, Restore on archived
+  cards.
+- Went live with `0200cad` (the earlier push `4501a13` never deployed during the Railway outage); checked by the
+  owner on `test`.
+- Reference: `.claude/docs/app-management.md`.
+
+## SHC-0007 — Chat backend (closed 2026-10-20)
+
+- `POST /api/chat` streams the build chat from Claude (Spring AI 2.0.1, Sonnet 5.5) as the AI SDK UI message stream
+  v1 over SSE; `GET /api/chat/conversations[/{id}]` returns a builder's own saved conversations as `UIMessage[]`.
+- Own step loop over `ChatModel.stream()` (text deltas, then tool calls shown, run and fed to the next step); tools
+  `save_draft` (whole app → `data-draft`) and `get_app` (rework, source to the model only). Stop cancels the model
+  call; partial answers and token usage are saved (Flyway `V3__chat.sql`).
+- Generic `chat` package (copyable; a test forbids other ShitCloud imports) + `buildchat` (endpoints, tools,
+  prompt). System prompt = chat rules + the builder guide from `frontend/src/guide` (copied in by pom + Dockerfile).
+- Found: Spring AI's Anthropic model hides tool-input streaming (the "silent minute" while an app is written —
+  mitigated by a sentence before `save_draft` + pings) and ignores generic options (start from the model's own).
+- The Build screen still uses the mock, now at `/api/chat/mock`, until the React chat package.
+- 107 unit + 161 IT + 38 frontend tests; stream checked with `ai`'s own reader; verified live on `test` by the owner.
+- Railway outage on 2026-10-20 delayed deploys: SHC-0019, SHC-0020 and this ticket went live together (`0200cad`).
+- Reference: `.claude/docs/chat-protocol.md` (protocol, server implementation, check snippet), `.claude/AGENTS.md`.
+
 ## SHC-0020 — Upgrade to Spring Boot 4 (closed 2026-10-20)
 
 - Boot 3.4 → 4.1.1 (Framework 7, Security 7, Jackson 3, Tomcat 11, Flyway 12, JUnit 6) so the chat can use
@@ -12,8 +39,7 @@ What each closed ticket delivered, newest first. Durable details live in the fil
   lose UTF-8); it was removed afterwards.
 - Same API output as Boot 3 on captured requests, except the error `timestamp` format (`Z`) and health `groups`.
   94 unit + 145 IT + 38 frontend tests green, no test expectations changed.
-- Pushed as `9bf5b41`, but **not yet running on `test`**: Railway created no deployment for it nor for `4501a13`
-  (SHC-0019), during a Railway outage. After the outage: deploy `api` and `frontend`, check a clean Boot 4 start.
+- Live on `test` since `0200cad` (after a Railway outage): clean Boot 4 start, Flyway applied V2 and V3.
 - Reference: `.claude/AGENTS.md` (stack), `.claude/docs/postgres.md` (Flyway starter).
 
 ## SHC-0006 — Chat library spike (closed 2026-10-20)

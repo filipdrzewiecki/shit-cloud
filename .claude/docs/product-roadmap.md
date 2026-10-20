@@ -38,7 +38,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] **SHC-0018 — Switch from MongoDB to PostgreSQL (JSONB).** Owner's decision: Postgres replaces Mongo
   everywhere (registry tables, app data as JSONB, Flyway, scheduled expiry, embedded Postgres locally); the SDK's
   filter syntax stays. Numbered last, done before SHC-0005.
-- [ ] **SHC-0019 — Manage a deployed app: remove, download, replace HTML.** Owner's request (2026-10-20):
+- [x] **SHC-0019 — Manage a deployed app: remove, download, replace HTML.** Owner's request (2026-10-20):
   1. *Remove* an app in two ways: **HTML only** = the app is archived (hidden from the list, its data kept) and can
      be brought back later; **with its data** = the app, its versions and its documents are deleted (history
      follows its retention).
@@ -63,10 +63,11 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 - [x] **SHC-0020 — Upgrade to Spring Boot 4.** Owner's decision in SHC-0006: Spring AI 2.0 (GA June 2026) needs
   Boot 4 / Spring Framework 7 / Jackson 3, so the platform moves first and the chat starts on the current line.
   Covers Boot 4.x, Jackson 3 package changes, Spring Security 7, Flyway, test setup; all tests green, deploy on `test`.
-  *Done on Boot 4.1.1; deploy on `test` waits for the Railway outage (see project log).*
-- [~] **SHC-0007 — Generic chat module (backend).** Own package, easy to copy (owner, SHC-0007 U1): conversation, SSE
+  *Done on Boot 4.1.1; live on `test`.*
+- [x] **SHC-0007 — Generic chat module (backend).** Own package, easy to copy (owner, SHC-0007 U1): conversation, SSE
   streaming, pluggable tool registration, Spring AI 2.0 + Anthropic, key from env. Conversations saved on the
   server per builder with their drafts (SHC-0006 decision); chat both creates and reworks apps.
+  *Done: `POST /api/chat` streams from Claude Sonnet 5.5 with `save_draft` + `get_app`; Build screen still on the mock.*
 - [ ] **SHC-0008 — Reusable React chat package.** Separate package (also as web component), used by
   the build screen; live preview in the same sandbox/origin model as production. Includes the
   draft-preview fix: `DraftFrame` gets `<base href>` to the apps origin so `/_lib/` loads in previews

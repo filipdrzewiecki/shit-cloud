@@ -113,6 +113,13 @@ data: [DONE]
 
 ## Server implementation (SHC-0007)
 
+Owner decisions: the chat is a **package, not a Maven module** — "reusable" means easy to copy; **SSE**, not
+WebSocket (one request → one one-way stream; plain HTTP keeps the bearer token, 401 handling and the Railway proxy);
+**backend first**, the Build screen moves to it with the React chat package; tools `save_draft` + `get_app` now,
+`list_spaces` / `sample_docs` / prompt tuning later; default model **Claude Sonnet 5.5**; output cap 32 000 tokens;
+title = first 60 characters. Verified on `test` 2026-10-20: a Polish lunch-poll request streamed a sentence,
+`save_draft` (6 KB app, one vote document per person per day) and an explanation of the collections.
+
 - Packages: `chat` (generic, copyable; `ChatPackageBoundaryTest` forbids other ShitCloud imports) and `buildchat`
   (ShitCloud's controller, tools, prompt). The Build screen still uses the mock at `POST /api/chat/mock` until the
   React chat package switches it to `useChat`.
@@ -146,6 +153,28 @@ data: [DONE]
   exactly the saved part order (step-start · text · tool-save_draft · data-draft · step-start · text).
 - Tests: `FakeChatModel` (scripted steps, recorded prompts) imported by `ChatIntegrationTest`; it is not a scanned
   configuration, so local dev never picks it up.
+
+**Checking the live chat without the GUI** (signed in on the GUI as a builder, DevTools console):
+```js
+const k = Object.keys(localStorage).find(k => k.startsWith('@@auth0spajs@@') && k.includes('shit-cloud-api'));
+const token = JSON.parse(localStorage[k]).body.access_token;
+const res = await fetch('https://api-test-27f4.up.railway.app/api/chat', { method: 'POST',
+  headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+  body: JSON.stringify({ message: { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'Zrób prostą ankietę lunchową' }] } }) });
+const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+let buf = '';
+for (;;) {
+  const { value, done } = await reader.read(); if (done) break; buf += value;
+  for (let i; (i = buf.indexOf('
+
+')) >= 0;) {
+    const f = buf.slice(0, i); buf = buf.slice(i + 2);
+    if (f.startsWith('data: ')) console.log(f.slice(6, 200));
+  }
+}
+```
+`error … invalid x-api-key` in the stream = the `ANTHROPIC_API_KEY` value on Railway is not an Anthropic API key
+(`sk-ant-api03-…`, no quotes or trailing newline) — the app passes it through unchanged.
 
 ## Gotchas found
 - **A framing mistake is silent**: a wrong part still returns 200 and an empty or stuck message. SHC-0007 keeps the

@@ -8,7 +8,7 @@ syntax was kept on purpose.)
 
 | Table | Contents |
 |---|---|
-| `apps` | slug (PK), name, description, current `html`, `owner` (creator), `version`, `last_used_at`, `archived`, created/updated, `updated_by` |
+| `apps` | slug (PK), name, description, current `html`, `owner` (creator), `version`, `last_used_at`, `archived` + `archived_at`/`archived_by`, created/updated, `updated_by` |
 | `app_versions` | every deploy: `app_slug` → `apps`, `version` (unique per app), html, `author`, `created_at` |
 | `docs` | app data: `space` (= app slug, FK → `apps`), `collection`, `doc_id` (unique per space+collection), `data jsonb`, `version`, created/updated by/at |
 | `doc_history` | earlier states: same identity + `version`, `op` (`update`/`delete`), previous `data`, previous `updated_by/at`, `changed_by/at` — no FK, outlives a deleted app |
