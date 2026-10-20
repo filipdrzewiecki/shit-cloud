@@ -54,9 +54,11 @@ this file keeps the decisions, the Railway setup and the traps already hit.
 - `AppFrame`: `src={frameUrl}`, sandbox `allow-scripts allow-same-origin allow-forms allow-modals allow-popups
   allow-downloads`. `allow-same-origin` is safe only because `src` is the apps origin.
 - `DraftFrame` (Build/Upload previews): `srcdoc`, **no** `allow-same-origin` (it would get the platform origin).
-- **Known gap:** a draft preview resolves `/_lib/…` against the frontend domain, so apps using the mirror look
-  broken until deployed. Planned fix: the GUI learns the apps origin from the API and `DraftFrame` adds
-  `<base href="<apps origin>/">` (isolation unchanged). Tracked in the product roadmap.
+- Draft previews load the mirror through `<base href>`: `GET /api/platform` → `libraryBaseUrl`
+  (`AppOrigin.libraryBaseUrl()`: the apps origin's root; in host mode `lib.<suffix>`, since every apps host serves
+  `/_lib/`). `DraftFrame` inserts it first in `<head>` of the **srcdoc copy only** (`shell/draftHtml.ts`); the
+  frame stays opaque-origin. Side effect: an in-page `#anchor` link navigates the sandboxed frame to the apps
+  origin. Drafts still have no SDK and no data (owner's decision in SHC-0008).
 
 ## Railway (`test`)
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useArchive, useRestore } from '../api/queries'
 import type { AppDetail } from '../api/types'
@@ -8,8 +9,8 @@ import { ReplaceHtmlDialog } from './ReplaceHtmlDialog'
 
 /**
  * "⋯ Manage" on the host page. Everyone can download the app and its data (they
- * can read all of it through the app anyway); builders also replace, archive,
- * restore and delete it.
+ * can read all of it through the app anyway); builders also change it with the
+ * build chat, replace, archive, restore and delete it.
  */
 export function AppManageMenu({ detail, builder }: { detail: AppDetail; builder: boolean }) {
   const { app } = detail
@@ -19,6 +20,7 @@ export function AppManageMenu({ detail, builder }: { detail: AppDetail; builder:
   const archive = useArchive(app.slug)
   const restore = useRestore(app.slug)
   const menu = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
 
   // Close the menu on any click outside it.
   useEffect(() => {
@@ -67,6 +69,9 @@ export function AppManageMenu({ detail, builder }: { detail: AppDetail; builder:
           {builder && (
             <>
               <hr />
+              <button type="button" role="menuitem" onClick={run(() => navigate(`/build?app=${app.slug}`))}>
+                ✨ Change with AI
+              </button>
               <button type="button" role="menuitem" onClick={run(() => setDialog('replace'))}>
                 ⇪ Replace HTML…
               </button>

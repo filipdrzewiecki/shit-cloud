@@ -72,7 +72,8 @@ PostgreSQL — tables, SQL and the filter translation are in `.claude/docs/postg
 ## Known gaps
 
 - Path mode on `test`: a same-origin app in another tab could script another app's frame and use its bridge.
-- Drafts (Build/Upload `srcdoc` previews) have no SDK and no bridge — with the chat package (SHC-0008).
+- Drafts (Build/Upload `srcdoc` previews) have no SDK and no bridge — owner's decision in SHC-0008 (the preview
+  says data works after deploying); an in-memory sandbox store behind the bridge was the rejected alternative.
 - No cross-space reads (SHC-0010), history UI/restore (SHC-0012), rate limits (SHC-0015). Dates travel as ISO strings.
 
 ## Testing

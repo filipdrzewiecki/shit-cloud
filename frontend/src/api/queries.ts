@@ -1,17 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { UIMessage } from 'ai'
 import { saveGuest } from '../auth/guestSession'
 import { api } from './client'
 import type {
   AppDetail,
   AppSummary,
   AppUsage,
-  ChatMessage,
-  ChatResponse,
+  ConversationSummary,
   DeleteResult,
   DeployRequest,
   GuestLoginRequest,
   GuestToken,
   Me,
+  Platform,
 } from './types'
 
 /** Shared with the app bridge, which answers an app's `me()` from the same cache. */
@@ -75,9 +76,29 @@ export function useAppUsage(slug: string, enabled: boolean) {
   })
 }
 
-export function useChat() {
-  return useMutation({
-    mutationFn: (messages: ChatMessage[]) => api.post<ChatResponse>('/api/chat/mock', { messages }),
+/** Where draft previews load the library mirror from; fixed for the server's lifetime. */
+export function usePlatform() {
+  return useQuery({ queryKey: ['platform'], queryFn: () => api.get<Platform>('/api/platform'), staleTime: Infinity })
+}
+
+export const conversationsKey = ['chat', 'conversations']
+
+/** The caller's own build-chat conversations, most recently continued first. */
+export function useConversations() {
+  return useQuery({ queryKey: conversationsKey, queryFn: () => api.get<ConversationSummary[]>('/api/chat/conversations') })
+}
+
+/**
+ * One conversation's messages, to open it. Read once: from then on the chat panel holds the live state, so the
+ * cached copy is never refetched behind its back.
+ */
+export function useConversation(id: string | null) {
+  return useQuery({
+    queryKey: [...conversationsKey, id],
+    queryFn: () => api.get<UIMessage[]>(`/api/chat/conversations/${id}`),
+    enabled: id !== null,
+    staleTime: Infinity,
+    gcTime: 0,
   })
 }
 

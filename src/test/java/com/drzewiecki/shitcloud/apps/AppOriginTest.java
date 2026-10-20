@@ -29,6 +29,14 @@ class AppOriginTest {
     }
 
     @Test
+    void libraryBaseUrl_isTheRootOfTheAppsOrigin_inBothModes() {
+        assertThat(new AppOrigin("https://apps.example.com/{slug}/", 8081).libraryBaseUrl())
+                .isEqualTo("https://apps.example.com/");
+        assertThat(new AppOrigin("http://{slug}.apps.localhost:8081/", 8081).libraryBaseUrl())
+                .isEqualTo("http://lib.apps.localhost:8081/");
+    }
+
+    @Test
     void hostMode_readsTheSlugFromTheHost() {
         AppOrigin origin = new AppOrigin("http://{slug}.apps.localhost:8081/", 8081);
 

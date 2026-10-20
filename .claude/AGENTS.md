@@ -116,8 +116,7 @@ code and report findings. Compiling (`mvn -q compile`) and typechecking the fron
 ```
 src/main/java/com/drzewiecki/shitcloud/
   Application.java
-  controller/      AppController, ChatController (mock, until the Build screen streams), MeController,
-                   GuestLoginController, DataController
+  controller/      AppController, MeController, PlatformController, GuestLoginController, DataController
   chat/            generic, copyable build-chat core — imports nothing else from ShitCloud (ChatPackageBoundaryTest):
                    ChatEngine (own step loop over Spring AI ChatModel.stream: text → tool calls → run → next step),
                    UiStreamWriter + UiParts (AI SDK UI message stream v1), ChatTool/ToolResult (plug-in tools),
@@ -146,11 +145,17 @@ src/main/resources/
 frontend/src/
   api/             client.ts (only place an absolute URL is built and a token attached), queries.ts, types.ts
   auth/            guestSession.ts (guest token in localStorage), returnTo.ts
-  pages/           SignInPage, AppListPage, AppHostPage, BuildPage, UploadPage, DeployBar, BuilderGuidePage
+  chat/            the build chat's UI, copyable (boundary.test.ts forbids GUI imports): ChatPanel (useChat +
+                   own parts, Stop, "Working… N s"), serverChat.ts (transport: own fetch, sends only the new message),
+                   drafts.ts, toolLabels.ts, Markdown (react-markdown), chat.css (own vars, GUI tokens as fallback)
+  pages/           SignInPage, AppListPage, AppHostPage (+ AppManageMenu: "Change with AI"), BuildPage
+                   (conversations · ChatPanel · preview; ?c=<id> / ?app=<slug>), ReplaceBar, UploadPage, DeployBar,
+                   BuilderGuidePage
   guide/           builder-guide.md: the app rules written for an AI assistant (shown at /guide, copied by builders)
   shell/           Layout, AppFrame (deployed app: apps-origin src + allow-same-origin), appBridge.ts +
                    useAppBridge (answers the app's SDK calls; accepts only its own frame + the apps origin),
-                   DraftFrame (Build/Upload preview: srcdoc, opaque origin)
+                   DraftFrame (Build/Upload/Replace preview: srcdoc, opaque origin, <base href> = apps origin from
+                   /api/platform so /_lib/ loads; draftHtml.ts)
   styles/          tokens.css (colours, light + dark), app.css
 ```
 
@@ -172,7 +177,7 @@ Every endpoint requires `Authorization: Bearer <token>` (Auth0 or guest) unless 
 | GET  | `/api/apps/{slug}/export` | signed in | All the app's documents by collection → download `<slug>-data.json` (cap `data.max-export-documents`, 413 above) |
 | POST | `/api/chat` | builder | Build chat: `{conversationId?, message, targetSlug?}` → SSE, AI SDK UI message stream v1 (`chat-protocol.md`); 503 `CHAT_UNAVAILABLE` without `ANTHROPIC_API_KEY`, 400/404 `{code,message}` before the stream |
 | GET  | `/api/chat/conversations` · `/{id}` | builder | Caller's own conversations, newest first · one as `UIMessage[]` (someone else's → 404) |
-| POST | `/api/chat/mock` | builder | Mock chat reply + draft HTML (today's Build screen) |
+| GET  | `/api/platform` | signed in | `{libraryBaseUrl}`: root of the apps origin, for draft previews' `<base href>` |
 | POST | `/api/data/{space}/{collection}/query` | signed in | `{filter?, sort?, limit?}` → `[DocView]`; Mongo-style filter, whitelisted operators only (translated to SQL on JSONB) |
 | PUT  | `/api/data/{space}/{collection}/{id}` | signed in | `{data, expectedVersion?}` → `DocView`; previous state → `doc_history`; last write wins unless `expectedVersion` (409 `VERSION_CONFLICT`) |
 | POST | `/api/data/{space}/{collection}` | signed in | `{data}` → 201 `DocView` with a generated id |

@@ -78,6 +78,14 @@ public class AppOrigin {
         return pattern.replace(PLACEHOLDER, slug);
     }
 
+    /**
+     * The root of the apps origin, where the library mirror ({@code /_lib/}) is served. Drafts that are not deployed
+     * yet load the mirror from here. In per-app host mode every app host serves the mirror; any one will do.
+     */
+    public String libraryBaseUrl() {
+        return URI.create(urlFor("lib")).resolve("/").toString();
+    }
+
     public boolean perAppHost() {
         return perAppHost;
     }

@@ -68,7 +68,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
   streaming, pluggable tool registration, Spring AI 2.0 + Anthropic, key from env. Conversations saved on the
   server per builder with their drafts (SHC-0006 decision); chat both creates and reworks apps.
   *Done: `POST /api/chat` streams from Claude Sonnet 5.5 with `save_draft` + `get_app`; Build screen still on the mock.*
-- [ ] **SHC-0008 — Reusable React chat package.** Separate package (also as web component), used by
+- [~] **SHC-0008 — Reusable React chat package.** Separate package (also as web component), used by
   the build screen; live preview in the same sandbox/origin model as production. Includes the
   draft-preview fix: `DraftFrame` gets `<base href>` to the apps origin so `/_lib/` loads in previews
   (`.claude/docs/app-origin.md`, known gap) — pull it forward if Upload previews hurt before then.

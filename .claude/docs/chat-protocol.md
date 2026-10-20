@@ -121,8 +121,7 @@ title = first 60 characters. Verified on `test` 2026-10-20: a Polish lunch-poll 
 `save_draft` (6 KB app, one vote document per person per day) and an explanation of the collections.
 
 - Packages: `chat` (generic, copyable; `ChatPackageBoundaryTest` forbids other ShitCloud imports) and `buildchat`
-  (ShitCloud's controller, tools, prompt). The Build screen still uses the mock at `POST /api/chat/mock` until the
-  React chat package switches it to `useChat`.
+  (ShitCloud's controller, tools, prompt). The mock is gone (SHC-0008); the Build screen streams through `useChat`.
 - **Own step loop, not `ChatClient` + `ToolCallingAdvisor`**: `ChatEngine` calls `ChatModel.stream()` once per step,
   streams text deltas, then shows each tool call (`tool-input-available`), runs it, shows the result, and starts the
   next step with `AssistantMessage(toolCalls)` + `ToolResponseMessage`. Max `chat.max-steps` (5) per answer.
@@ -192,6 +191,27 @@ for (;;) {
 ## Consequences for the next tickets
 - **SHC-0020 (Boot 4)**: no protocol impact.
 - **SHC-0007**: done — see "Server implementation" above.
-- **SHC-0008**: package = `useChat` + our components (reuse `DraftFrame`; markdown via `react-markdown`); Deploy
-  becomes Replace HTML when `targetSlug` is set; conversation list; later wrap as a web component (U1).
+- **SHC-0008**: done — see "Client implementation" below.
 - **SHC-0009**: tool outputs shown to the user are summaries; `get_app` for rework (U5).
+
+## Client implementation (SHC-0008)
+
+- `frontend/src/chat/` is the copyable UI (owner: a folder, not a package; web component later). `boundary.test.ts`
+  allows only `./`, `react`, `ai`, `@ai-sdk/react`, `react-markdown`. Pinned exactly: `ai@7.0.146`,
+  `@ai-sdk/react@4.0.150`, `react-markdown@10.1.0` (+89 KB gzip on the GUI bundle: 148 → 237 KB).
+- `ChatPanel` props: `endpoint`, `fetch` (the GUI passes `authorizedFetch` from `api/client.ts` — base URL, token,
+  401 → sign-in, non-OK → `ApiError` with the server's message, because `DefaultChatTransport` would surface the raw
+  body), `conversationId`/`initialMessages` (continue), `targetSlug` (rework), `onDraft`, `onConversation`.
+- `prepareSendMessagesRequest` → `{conversationId, message (text parts only), targetSlug (only when starting)}`.
+- One `useChat` per conversation: switching = a new `key`. The server naming a new conversation
+  (`data-conversation`) must **not** remount the panel (it would drop the stream): BuildPage keeps it as
+  `adoptedId`, puts `?c=<id>` into the URL with `replace`, and refreshes the list.
+- `useChat` keeps the callbacks it was created with → `onDraft`/`onConversation` go through refs.
+- Part components are module-level and `MessageView` is memoised (the assistant-ui freeze lesson); `throttle: 50`.
+  Tool parts render as one line (`toolLabels.ts`), never their input (`save_draft`'s is a whole app).
+- Silent minute: "Thinking…" until the first part, then "Writing…", and "Working… N s" after 3 s without a part.
+- Opening a conversation: `GET …/{id}` once (`staleTime: Infinity`, `gcTime: 0`); the preview = `lastDraft(messages)`.
+- Rework: Manage menu "Change with AI" → `/build?app=<slug>`; the preview offers only "Replace HTML of …"
+  (`ReplaceBar`, `PUT /api/apps/{slug}/html`), never a deploy by name.
+- Preview: no SDK and no data (owner's choice) — said above the frame; `<base href>` from `/api/platform` makes
+  `/_lib/` load (`app-origin.md`).

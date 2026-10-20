@@ -55,14 +55,17 @@ export interface GuestToken {
   expiresAt: string
 }
 
-export interface ChatMessage {
-  role: 'user' | 'assistant'
-  content: string
+/** A saved build-chat conversation; `targetSlug` is the app it changes, null for a new app. */
+export interface ConversationSummary {
+  id: string
+  title: string
+  targetSlug: string | null
+  updatedAt: string
 }
 
-export interface ChatResponse {
-  reply: ChatMessage
-  draftHtml: string | null
+export interface Platform {
+  /** Root of the apps origin: draft previews load `/_lib/` from here. */
+  libraryBaseUrl: string
 }
 
 /** A document of an app, as the Data API returns it. `id` is the app's own id. */

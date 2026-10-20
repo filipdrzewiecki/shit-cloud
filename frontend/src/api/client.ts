@@ -87,22 +87,37 @@ async function send(method: Method, path: string, body?: unknown, options: Reque
   })
 
   if (response.status === 401 && !options.anonymous) throw unauthenticated()
+  if (!response.ok) throw await failure(response)
+  return response
+}
 
-  if (!response.ok) {
-    // Spring's default error body carries a short `error`; the reason passed to
-    // ResponseStatusException is not exposed by default, so the status is the
-    // most reliable thing to show. The Data API answers {code, message} instead.
-    let detail = response.statusText
-    try {
-      const json = (await response.json()) as { error?: string; code?: string; message?: string }
-      if (json.code && json.message) throw new ApiError(response.status, json.message, json.code)
-      if (json.error) detail = json.error
-    } catch (e) {
-      if (e instanceof ApiError) throw e
-      // Not JSON — keep the status text.
-    }
-    throw new ApiError(response.status, `${response.status} ${detail}`)
+/** The error a failed response stands for. */
+async function failure(response: Response): Promise<ApiError> {
+  // Spring's default error body carries a short `error`; the reason passed to
+  // ResponseStatusException is not exposed by default, so the status is the
+  // most reliable thing to show. The Data API and the chat answer {code, message} instead.
+  let detail = response.statusText
+  try {
+    const json = (await response.json()) as { error?: string; code?: string; message?: string }
+    if (json.code && json.message) return new ApiError(response.status, json.message, json.code)
+    if (json.error) detail = json.error
+  } catch {
+    // Not JSON — keep the status text.
   }
+  return new ApiError(response.status, `${response.status} ${detail}`)
+}
+
+/**
+ * A `fetch` for code that reads the response itself (the chat's stream): the path is joined to the API origin and
+ * the token attached here, a lost session goes to sign-in, and a failed response throws a readable ApiError.
+ */
+export async function authorizedFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const url = typeof input === 'string' && input.startsWith('/') ? API_BASE_URL + input : input
+  const headers = new Headers(init.headers)
+  headers.set('Authorization', `Bearer ${await bearer()}`)
+  const response = await fetch(url, { ...init, headers })
+  if (response.status === 401) throw unauthenticated()
+  if (!response.ok) throw await failure(response)
   return response
 }
 
