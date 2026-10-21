@@ -60,6 +60,16 @@ function describe(name: string, part: ToolPartLike, phase: 'busy' | 'done' | 'fa
         ? `Looked at ${docs} ${docs === 1 ? 'document' : 'documents'} of ${where}`
         : `Looked at documents of ${where}`
     }
+    case 'get_deps': {
+      const space = field(part.input, 'space')
+      const app = typeof space === 'string' ? space : 'the app'
+      if (phase === 'busy') return `Checking who uses ${app}'s data…`
+      if (phase === 'failed') return `Could not check who uses ${app}'s data`
+      const others = field(part.output, 'otherApps')
+      if (typeof others !== 'number') return `Checked who uses ${app}'s data`
+      if (others === 0) return `Checked who uses ${app}'s data (no other apps)`
+      return `Checked who uses ${app}'s data (${others} other ${others === 1 ? 'app' : 'apps'})`
+    }
     case 'get_app': {
       const slug = field(part.input, 'slug')
       const app = typeof slug === 'string' ? slug : 'the app'

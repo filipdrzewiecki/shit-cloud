@@ -1,6 +1,8 @@
 package com.drzewiecki.shitcloud.buildchat;
 
 import com.drzewiecki.shitcloud.chat.ChatIntegrationTest;
+import com.drzewiecki.shitcloud.data.DataService;
+import com.drzewiecki.shitcloud.data.DataWrite;
 import com.drzewiecki.shitcloud.model.DeployRequest;
 import com.drzewiecki.shitcloud.service.AppRegistry;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,9 @@ class BuildChatControllerIT extends ChatIntegrationTest {
 
     @Autowired
     private AppRegistry registry;
+
+    @Autowired
+    private DataService data;
 
     @Test
     void guestsAndUsers_cannotUseTheChat() throws Exception {
@@ -132,6 +137,79 @@ class BuildChatControllerIT extends ChatIntegrationTest {
     }
 
     @Test
+    void edits_applyToTheDeployedApp_thenToTheDraft_alsoInTheNextMessage() throws Exception {
+        registry.deploy(new DeployRequest("Lunch Poll", null, APP_HTML), BUILDER_EMAIL);
+        model.script(
+                step(List.of(), call("c1", "get_app", "{\"slug\":\"lunch-poll\"}")),
+                step(List.of("Renaming."), call("c2", "edit_draft", edits("Lunch", "Lunch v2"))),
+                step(List.of(), call("c3", "edit_draft", edits("v2", "v3"))),
+                answer("Changed"),
+                step(List.of(), call("c4", "edit_draft", edits("v3", "v4"))),
+                answer("Again"));
+
+        List<Map<String, Object>> first = chat(builder(), turn(null, "Rename it", "lunch-poll"));
+
+        assertThat(drafts(first)).containsExactly(
+                Map.of("html", APP_HTML.replace("Lunch", "Lunch v2"), "targetSlug", "lunch-poll"),
+                Map.of("html", APP_HTML.replace("Lunch", "Lunch v3"), "targetSlug", "lunch-poll"));
+        assertThat(parts(first, "tool-output-available")).extracting(part -> part.get("output")).last()
+                .isEqualTo(Map.of("edited", 1, "bytes", APP_HTML.length() + 3));
+        // The deployed app is untouched until the user deploys the draft.
+        assertThat(registry.html("lunch-poll")).isEqualTo(APP_HTML);
+
+        @SuppressWarnings("unchecked")
+        String id = ((Map<String, String>) first.get(1).get("data")).get("id");
+        List<Map<String, Object>> second = chat(builder(), turn(id, "Once more", null));
+
+        assertThat(drafts(second)).containsExactly(
+                Map.of("html", APP_HTML.replace("Lunch", "Lunch v4"), "targetSlug", "lunch-poll"));
+    }
+
+    @Test
+    void failedEdit_isShownAndHandedToTheModel() throws Exception {
+        model.script(
+                step(List.of(), call("c1", "save_draft", json.writeValueAsString(Map.of("html", APP_HTML)))),
+                step(List.of(), call("c2", "edit_draft", edits("Dinner", "Supper"))),
+                answer("Sorry"));
+
+        List<Map<String, Object>> parts = chat(builder(), turn(null, "Poll", null));
+
+        assertThat(parts(parts, "tool-output-error")).singleElement()
+                .satisfies(part -> assertThat((String) part.get("errorText")).startsWith("edit 1: old_text not found"));
+        assertThat(drafts(parts)).hasSize(1);
+    }
+
+    @Test
+    void dataTools_showTheModelSpacesAndDocuments_andTheUserOnlyCounts() throws Exception {
+        registry.deploy(new DeployRequest("Lunch Poll", "Votes", APP_HTML), BUILDER_EMAIL);
+        data.set("lunch-poll", "votes", "anna", new DataWrite(Map.of("dish", "pierogi"), null), "guest:Anna");
+        model.script(
+                step(List.of(), call("c1", "list_spaces", "{}")),
+                step(List.of(), call("c2", "sample_docs", "{\"space\":\"lunch-poll\",\"collection\":\"votes\",\"n\":9}")),
+                step(List.of(), call("c3", "sample_docs", "{\"space\":\"nope\",\"collection\":\"votes\"}")),
+                answer("I see"));
+
+        List<Map<String, Object>> parts = chat(builder(), turn(null, "What data is there?", null));
+
+        assertThat(parts(parts, "tool-output-available")).extracting(part -> part.get("output")).containsExactly(
+                Map.of("spaces", 1),
+                Map.of("space", "lunch-poll", "collection", "votes", "docs", 1));
+        assertThat(parts(parts, "tool-output-error")).singleElement()
+                .satisfies(part -> assertThat((String) part.get("errorText")).endsWith("; see list_spaces"));
+        List<Message> last = model.prompts().getLast().getInstructions();
+        List<ToolResponseMessage> responses = last.stream().filter(ToolResponseMessage.class::isInstance)
+                .map(ToolResponseMessage.class::cast).toList();
+        assertThat(responses.get(0).getResponses().getFirst().responseData())
+                .contains("\"space\":\"lunch-poll\"", "\"collections\":{\"votes\":1}");
+        assertThat(responses.get(1).getResponses().getFirst().responseData())
+                .startsWith("Newest 1 document(s) of lunch-poll / votes:")
+                .contains("\"dish\":\"pierogi\"", "\"_updatedBy\":\"guest:Anna\"");
+        // What the model read is not saved with the conversation.
+        String saved = jdbc.sql("select parts::text from chat_messages where role = 'assistant'").query(String.class).single();
+        assertThat(saved).doesNotContain("pierogi");
+    }
+
+    @Test
     void conversations_belongToTheirBuilder() throws Exception {
         model.script(answer("Mine"));
         List<Map<String, Object>> parts = chat(builder(), turn(null, "Mine", null));
@@ -176,6 +254,18 @@ class BuildChatControllerIT extends ChatIntegrationTest {
         body.put("message", Map.of("id", "u1", "role", "user", "parts", List.of(Map.of("type", "text", "text", text))));
         body.put("targetSlug", targetSlug);
         return json.writeValueAsString(body);
+    }
+
+    private String edits(String oldText, String newText) {
+        return json.writeValueAsString(Map.of("edits", List.of(Map.of("old_text", oldText, "new_text", newText))));
+    }
+
+    private static List<Map<String, Object>> parts(List<Map<String, Object>> parts, String type) {
+        return parts.stream().filter(part -> type.equals(part.get("type"))).toList();
+    }
+
+    private static List<Object> drafts(List<Map<String, Object>> parts) {
+        return parts(parts, "data-draft").stream().map(part -> part.get("data")).toList();
     }
 
     private static Map<String, Object> nullTarget(String html) {

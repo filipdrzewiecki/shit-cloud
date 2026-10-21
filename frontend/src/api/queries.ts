@@ -8,6 +8,7 @@ import type {
   AppUsage,
   ConversationSummary,
   DeleteResult,
+  DependencyView,
   DeployRequest,
   GuestLoginRequest,
   GuestToken,
@@ -72,6 +73,15 @@ export function useAppUsage(slug: string, enabled: boolean) {
   return useQuery({
     queryKey: ['apps', slug, 'usage'],
     queryFn: () => api.get<AppUsage>(`/api/apps/${slug}/usage`),
+    enabled,
+  })
+}
+
+/** Which apps used this app's data (builders only). */
+export function useDeps(slug: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['apps', slug, 'deps'],
+    queryFn: () => api.get<DependencyView[]>(`/api/deps/${encodeURIComponent(slug)}`),
     enabled,
   })
 }

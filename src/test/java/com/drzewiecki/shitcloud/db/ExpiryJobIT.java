@@ -3,6 +3,7 @@ package com.drzewiecki.shitcloud.db;
 import com.drzewiecki.shitcloud.IntegrationTest;
 import com.drzewiecki.shitcloud.data.DataService;
 import com.drzewiecki.shitcloud.data.DataWrite;
+import com.drzewiecki.shitcloud.data.DependencyLog;
 import com.drzewiecki.shitcloud.model.DeployRequest;
 import com.drzewiecki.shitcloud.service.AppRegistry;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,9 @@ class ExpiryJobIT extends IntegrationTest {
     @Autowired
     private DataService data;
 
+    @Autowired
+    private DependencyLog dependencies;
+
     @Test
     void purge_removesOnlyWhatIsOlderThanItsRetention() {
         appRegistry.deploy(new DeployRequest("Kalendarz", null, "<p>v1</p>"), BUILDER_EMAIL);
@@ -43,6 +47,19 @@ class ExpiryJobIT extends IntegrationTest {
         // The app and its current data are never expired.
         assertThat(appRegistry.exists("kalendarz")).isTrue();
         assertThat(jdbc.sql("select count(*) from docs").query(Long.class).single()).isEqualTo(1);
+    }
+
+    @Test
+    void purge_forgetsDependenciesUnusedForTheirRetention() {
+        appRegistry.deploy(new DeployRequest("Kalendarz", null, "<p>x</p>"), BUILDER_EMAIL);
+        appRegistry.deploy(new DeployRequest("Raport", null, "<p>x</p>"), BUILDER_EMAIL);
+        dependencies.record("raport", "kalendarz", "days", DependencyLog.Mode.READ);
+        dependencies.record("kalendarz", "kalendarz", "days", DependencyLog.Mode.WRITE);
+        jdbc.sql("update app_deps set last_seen_at = now() - interval '100 days' where reader = 'raport'").update();
+
+        expiryJob.purge(Instant.now());
+
+        assertThat(jdbc.sql("select reader from app_deps").query(String.class).list()).containsExactly("kalendarz");
     }
 
     @Test

@@ -10,8 +10,11 @@ app (apps origin, iframe)  ── postMessage {shitcloud:1, id, op, …} ──�
   window.shitcloud.db.*                                                  shell/appBridge.ts + useAppBridge
                                                                          ├─ accept only: event.source === the app's
                                                                          │  iframe window AND event.origin === apps origin
-                                                                         ├─ space = slug from the ROUTE, never the message
-                                                                         └─ Data API with the user's token ─▶ DataService
+                                                                         ├─ writes: space = slug from the ROUTE, never
+                                                                         │  the message; only find may name another space
+                                                                         └─ Data API with the user's token and
+                                                                            X-ShitCloud-App: <route slug> ─▶ DataService
+                                                                            (+ DependencyLog after success)
   ◀── postMessage {shitcloud:1, id, ok, result | error{code,message}} to the apps origin only
 ```
 
@@ -22,7 +25,7 @@ app (apps origin, iframe)  ── postMessage {shitcloud:1, id, op, …} ──�
 - Opened in a tab of its own, the app has no parent: every call rejects with `NOT_IN_SHITCLOUD` ("Open in new tab"
   is kept for debugging the HTML).
 
-## SDK (`resources/apps/sdk.js`, `shitcloud.version = 2`, frozen)
+## SDK (`resources/apps/sdk.js`, `shitcloud.version = 3`, frozen)
 
 ```js
 const me = await shitcloud.me();                                   // {id, displayName, guest}
@@ -30,6 +33,7 @@ const days = await shitcloud.db.find('days', {userId: me.id, date: {$gte: '2026-
 await shitcloud.db.set('days', 'filip_2026-10-20', {type: 'off'});   // create or replace; {expectedVersion} optional
 const id = await shitcloud.db.add('votes', {place: 'Pizza'});        // generated id (ObjectId hex)
 await shitcloud.db.remove('days', 'filip_2026-10-20');              // false when nothing was there
+const marks = await shitcloud.db.space('team-calendar').find('marks', {...});  // another app, read-only (v3)
 ```
 
 - Results are **flat**: `{...fields, id, _version, _updatedBy, _updatedAt}`. On write, `id` and top-level `_` keys
@@ -58,6 +62,15 @@ PostgreSQL — tables, SQL and the filter translation are in `.claude/docs/postg
 
 - Space = an existing app's slug (else 404 `NO_SUCH_APP`). Write-only-own-space is enforced by the bridge; a user
   with curl has the same rights as through any app (accepted).
+- **Cross-space reads** (SHC-0010): `db.space(slug)` has `find` only, so a write to another space cannot even be
+  attempted; the bridge honours a message's `space` for `find` only. Any existing app is readable, archived
+  included; deleted → `NO_SUCH_APP`. No new right: the API already let everyone read every space.
+- **Dependency log** (`app_deps`, `data/DependencyLog`): the bridge names the app on screen in `X-ShitCloud-App`
+  (allowed in CORS); after a successful call `DataController` records `(reader, space, collection, read|write)`.
+  Insert on first use, `last_seen_at` refreshed at most hourly (`on conflict … where last_seen_at < now - 1h`), an
+  unknown reader inserts nothing, a failed write is logged and ignored. Own-space use is recorded too. Rows go when
+  either app is deleted (FK cascade) or after `data.deps-ttl` (90 d) unused (`ExpiryJob`). Self-declared reader →
+  informational only. Read by `GET /api/deps/{space}` (builders; "Used by" on the app page) and the chat's `get_deps`.
 - Everyone signed in reads and writes, **guests included**; writes record `guest:<name>` or the builder's email.
 - Filters (`FilterTranslator`): rebuilt from a whitelist — implicit equality, `$eq $ne $gt $gte $lt $lte $in $nin
   $exists`, `$and`/`$or` at any level, dotted paths — translated to parameterised SQL on the JSONB `data` with
@@ -77,7 +90,7 @@ PostgreSQL — tables, SQL and the filter translation are in `.claude/docs/postg
 - Path mode on `test`: a same-origin app in another tab could script another app's frame and use its bridge.
 - Drafts (Build/Upload `srcdoc` previews) have no SDK and no bridge — owner's decision in SHC-0008 (the preview
   says data works after deploying); an in-memory sandbox store behind the bridge was the rejected alternative.
-- No cross-space reads (SHC-0010), history UI/restore (SHC-0012), rate limits (SHC-0015). Dates travel as ISO strings.
+- History UI/restore (SHC-0012), rate limits (SHC-0015). Dates travel as ISO strings.
 
 ## Testing
 

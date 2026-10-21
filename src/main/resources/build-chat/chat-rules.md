@@ -23,7 +23,13 @@ build it as one HTML file that follows the guide below.
   real documents. Keep the collection names and document shapes you find.
 - If the user's request needs a different shape (a renamed field, a new structure), say so plainly in your reply
   and name what existing documents will lack; never change a shape silently.
-- An app reads and writes only its own space (its slug). It cannot read another app's data yet.
+- Before changing or removing a field, a collection or the shape of an app's documents, call `get_deps` for that
+  app's space and name in your reply the other apps that read what you change and will likely break. It informs; go
+  ahead with what the user asked for.
+- An app writes only its own space. It may **read** another app's data with
+  `shitcloud.db.space('<slug>').find(...)` (see the guide). Before building such an app, find the source with
+  `list_spaces` and learn its documents with `sample_docs` — the guessed shape of someone else's data is always
+  wrong.
 
 ## Replying
 

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -40,6 +41,26 @@ class DataControllerIT extends IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value("anna_2026-10-20"))
                 .andExpect(jsonPath("$[0].data.type").value("off"));
+    }
+
+    @Test
+    void appOnScreen_isRecordedAsTheReader_afterSuccessfulCallsOnly() throws Exception {
+        appRegistry.deploy(new DeployRequest("Office Report", null, "<p>x</p>"), BUILDER_EMAIL);
+
+        mvc.perform(post(DAYS + "/query").with(guest("Anna")).header(DataController.READER, "office-report"))
+                .andExpect(status().isOk());
+        mvc.perform(put(DAYS + "/a").with(guest("Anna")).header(DataController.READER, "kalendarz")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"data\": {\"n\": 1}}"))
+                .andExpect(status().isOk());
+        // Refused calls and calls without the header are not recorded.
+        mvc.perform(post("/api/data/kalendarz/people/query").with(guest("Anna")).header(DataController.READER, "office-report")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"filter\": {\"$where\": \"1\"}}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/data/kalendarz/votes/query").with(guest("Anna"))).andExpect(status().isOk());
+
+        assertThat(jdbc.sql("select reader || ' ' || space || ' ' || collection || ' ' || mode from app_deps")
+                .query(String.class).list())
+                .containsExactlyInAnyOrder("office-report kalendarz days read", "kalendarz kalendarz days write");
     }
 
     @Test

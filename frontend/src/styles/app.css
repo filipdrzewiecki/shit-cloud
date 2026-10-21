@@ -707,3 +707,8 @@ button:disabled {
   gap: 8px;
   font-size: 13px;
 }
+
+.used-by {
+  margin: 0 0 12px;
+  font-size: 0.9em;
+}

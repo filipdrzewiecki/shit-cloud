@@ -9,7 +9,8 @@ import type { DataQuery, DocView, Me } from '../api/types'
  *
  * The rules that make it safe:
  * - only the app's own frame window, from the app's origin, is listened to;
- * - the space is the slug of the app on screen, never anything from the message;
+ * - writes go to the space of the app on screen, never one from the message;
+ *   only `find` may name another app's space (reading is open to every app);
  * - replies go to the app's origin only.
  */
 
@@ -79,7 +80,9 @@ async function perform(request: BridgeRequest, space: string, backend: BridgeBac
       return { id: me.id, displayName: me.displayName, guest: me.guest }
     }
     case 'find':
-      return backend.query(space, text(request, 'collection'), {
+      // Only find may name another app's space (shitcloud.db.space(slug).find): reading is open to every app,
+      // writing stays in the app's own space, whatever a message says.
+      return backend.query(optionalText(request, 'space') ?? space, text(request, 'collection'), {
         filter: optionalObject(request, 'filter') as Record<string, unknown> | undefined,
         sort: optionalObject(request, 'sort') as Record<string, number> | undefined,
         limit: optionalNumber(request, 'limit'),
@@ -110,6 +113,13 @@ async function perform(request: BridgeRequest, space: string, backend: BridgeBac
 
 function text(request: BridgeRequest, name: string): string {
   const value = request[name]
+  if (typeof value !== 'string' || value === '') throw new BridgeError('BAD_REQUEST', `${name} must be text`)
+  return value
+}
+
+function optionalText(request: BridgeRequest, name: string): string | undefined {
+  const value = request[name]
+  if (value === undefined || value === null) return undefined
   if (typeof value !== 'string' || value === '') throw new BridgeError('BAD_REQUEST', `${name} must be text`)
   return value
 }

@@ -15,10 +15,12 @@ export function useAppBridge(frameRef: RefObject<HTMLIFrameElement>, frameUrl: s
     const appOrigin = new URL(frameUrl).origin
     const backend: BridgeBackend = {
       me: () => queryClient.ensureQueryData(meQuery),
-      query: dataApi.query,
-      set: dataApi.set,
-      add: dataApi.add,
-      remove: dataApi.remove,
+      // Every call names this app, so the server can note which app used which data.
+      query: (target, collection, query) => dataApi.query(target, collection, query, space),
+      set: (target, collection, id, data, expectedVersion) =>
+        dataApi.set(target, collection, id, data, expectedVersion, space),
+      add: (target, collection, data) => dataApi.add(target, collection, data, space),
+      remove: (target, collection, id, expectedVersion) => dataApi.remove(target, collection, id, expectedVersion, space),
     }
 
     async function onMessage(event: MessageEvent) {

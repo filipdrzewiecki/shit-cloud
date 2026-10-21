@@ -55,12 +55,42 @@ describe('acceptRequest', () => {
 })
 
 describe('handleRequest', () => {
-  it('uses the space of the app on screen, never one from the message', async () => {
+  it('finds in the space of the app on screen by default', async () => {
     const api = backend()
 
-    await handleRequest({ ...request, space: 'other-app' }, 'kalendarz', api)
+    await handleRequest(request, 'kalendarz', api)
 
     expect(api.query).toHaveBeenCalledWith('kalendarz', 'days', { filter: undefined, sort: undefined, limit: undefined })
+  })
+
+  it('lets find read another app, named in the message (db.space(slug).find)', async () => {
+    const api = backend()
+
+    await handleRequest({ ...request, space: 'team-calendar' }, 'kalendarz', api)
+
+    expect(api.query).toHaveBeenCalledWith('team-calendar', 'days', { filter: undefined, sort: undefined, limit: undefined })
+  })
+
+  it('writes only to the space of the app on screen, whatever the message says', async () => {
+    const api = backend()
+    const other = { space: 'team-calendar', collection: 'days' }
+
+    await handleRequest({ ...request, ...other, op: 'set', docId: 'a', data: { n: 1 } }, 'kalendarz', api)
+    await handleRequest({ ...request, ...other, op: 'add', data: { n: 1 } }, 'kalendarz', api)
+    await handleRequest({ ...request, ...other, op: 'remove', docId: 'a' }, 'kalendarz', api)
+
+    expect(api.set).toHaveBeenCalledWith('kalendarz', 'days', 'a', { n: 1 }, undefined)
+    expect(api.add).toHaveBeenCalledWith('kalendarz', 'days', { n: 1 })
+    expect(api.remove).toHaveBeenCalledWith('kalendarz', 'days', 'a', undefined)
+  })
+
+  it.each([123, '', {}])('refuses a space that is not a slug text: %j', async (space) => {
+    const api = backend()
+
+    const reply = await handleRequest({ ...request, space }, 'kalendarz', api)
+
+    expect(reply).toMatchObject({ ok: false, error: { code: 'BAD_REQUEST', message: 'space must be text' } })
+    expect(api.query).not.toHaveBeenCalled()
   })
 
   it('answers find with the documents', async () => {

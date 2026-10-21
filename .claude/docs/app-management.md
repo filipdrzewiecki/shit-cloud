@@ -30,6 +30,9 @@ From SHC-0019 (2026-10-20). Endpoints are listed in `.claude/AGENTS.md`; this fi
   `\ / : * ? " < > |` replaced by `-` (`lib/download.ts#safeFileName`).
 - GUI: host page "⋯ Manage" menu (everyone: the downloads; builders: Replace…, Archive/Restore, Delete…); Replace
   previews the file in `DraftFrame` first; archived cards in the list (under "Show archived") have Restore.
+  Builders also see "Its data is used by …" under the bar when other apps used this app's data in the last 90 days
+  (`GET /api/deps/{slug}`, own use filtered out, `pages/usedBy.ts`; SHC-0010). The Delete dialog does **not** warn
+  about readers (owner's decision).
   After a delete only the app list is invalidated — refetching the deleted app's own query while its page is
   still mounted gave a pointless 404.
 

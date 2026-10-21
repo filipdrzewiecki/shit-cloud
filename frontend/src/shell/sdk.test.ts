@@ -103,7 +103,41 @@ describe('SDK', () => {
     expect(() => {
       win.shitcloud = {}
     }).toThrow()
-    expect(shitcloud.version).toBe(2)
+    expect(shitcloud.version).toBe(3)
+  })
+
+  it('reads another app with space(slug).find, naming that space in the request', async () => {
+    const { shitcloud, sent, deliver } = loadSdk()
+
+    const found = shitcloud.db.space('team-calendar').find('marks', { n: 1 }, { limit: 2 })
+    deliver({ shitcloud: 1, id: sent[0].message.id, ok: true, result: [doc] })
+
+    expect(sent[0].message).toMatchObject({ op: 'find', space: 'team-calendar', collection: 'marks', filter: { n: 1 }, limit: 2 })
+    expect(await found).toEqual([{ n: 1, id: 'a', _version: 2, _updatedBy: 'guest:Anna', _updatedAt: '2026-10-19T10:00:00Z' }])
+  })
+
+  it('offers nothing but find on another app, frozen', () => {
+    const { shitcloud } = loadSdk()
+
+    const other = shitcloud.db.space('team-calendar')
+
+    expect(Object.keys(other)).toEqual(['find'])
+    expect(Object.isFrozen(other)).toBe(true)
+  })
+
+  it('own find names no space, so the host uses the app on screen', () => {
+    const { shitcloud, sent } = loadSdk()
+
+    void shitcloud.db.find('days')
+
+    expect(sent[0].message.space).toBeUndefined()
+  })
+
+  it.each([undefined, '', 42])('rejects space() without a slug: %j', async (slug) => {
+    const { shitcloud, sent } = loadSdk()
+
+    await expect(shitcloud.db.space(slug).find('marks')).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    expect(sent).toHaveLength(0)
   })
 
   it('leaves an existing window.shitcloud alone', () => {

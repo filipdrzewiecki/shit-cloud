@@ -116,16 +116,19 @@ code and report findings. Compiling (`mvn -q compile`) and typechecking the fron
 ```
 src/main/java/com/drzewiecki/shitcloud/
   Application.java
-  controller/      AppController, MeController, PlatformController, GuestLoginController, DataController
+  controller/      AppController, MeController, PlatformController, GuestLoginController, DataController,
+                   DepsController (/api/deps/{space})
   chat/            generic, copyable build-chat core — imports nothing else from ShitCloud (ChatPackageBoundaryTest):
                    ChatEngine (own step loop over Spring AI ChatModel.stream: text → tool calls → run → next step),
                    UiStreamWriter + UiParts (AI SDK UI message stream v1), ChatTool/ToolResult (plug-in tools),
                    HistoryMapper (saved UIMessages → prompt; only the latest data part in full), ConversationStore,
                    DataParts (a tool reads the latest data part, e.g. the draft, via TurnContext.data())
   buildchat/       ShitCloud's chat: BuildChatController (/api/chat), BuildChatPrompt, tools SaveDraftTool,
-                   EditDraftTool (exact-text edits), GetAppTool, ListSpacesTool, SampleDocsTool; Drafts (checks, base)
+                   EditDraftTool (exact-text edits), GetAppTool, ListSpacesTool, SampleDocsTool, GetDepsTool;
+                   Drafts (checks, base)
   data/            DataService (docs + doc_history, row locks), FilterTranslator (Mongo-style filter → SQL on JSONB),
-                   DataProperties, records, DataException + DataExceptionHandler ({code, message} bodies)
+                   DataProperties, records, DataException + DataExceptionHandler ({code, message} bodies),
+                   DependencyLog (app_deps: which app used which data, from the X-ShitCloud-App header)
   apps/            the apps port: AppsConnectorConfig (2nd Tomcat connector), PortFence, AppsSecurityConfig
                    (own filter chain, framing allowed), AppOrigin (url pattern), AppDocumentController (CSP),
                    SdkInjector, LibraryMirrorConfig
@@ -138,7 +141,7 @@ src/main/java/com/drzewiecki/shitcloud/
 src/main/resources/
   application.properties, application-dev.properties
   db/migration/    Flyway SQL migrations (V1 apps, app_versions, docs, doc_history; V2 archive; V3 chat_conversations,
-                   chat_messages)
+                   chat_messages; V4 app_deps)
   build-chat/      chat-rules.md (system prompt preamble); builder-guide.md is copied in from frontend/src/guide by
                    the build (pom resources + Dockerfile) — one guide for /guide and the chat
   sample-apps/     seed HTML apps for the mockup

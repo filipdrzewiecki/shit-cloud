@@ -84,3 +84,14 @@ export interface DataQuery {
   sort?: Record<string, number>
   limit?: number
 }
+
+/** One app's use of one collection of a space (GET /api/deps/{space}); the space's own app is listed too. */
+export interface DependencyView {
+  app: string
+  appName: string
+  archived: boolean
+  collection: string
+  mode: 'read' | 'write'
+  firstSeenAt: string
+  lastSeenAt: string
+}

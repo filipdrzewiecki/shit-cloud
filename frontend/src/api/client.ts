@@ -72,11 +72,13 @@ type Method = 'GET' | 'POST' | 'PUT' | 'DELETE'
 interface RequestOptions {
   /** Sent without a token, and a 401 is the endpoint's answer rather than a lost session. */
   anonymous?: boolean
+  /** Extra headers, e.g. the app on screen for the Data API (X-ShitCloud-App). */
+  headers?: Record<string, string>
 }
 
 /** Sends the request and turns every failure into an ApiError; the caller reads the body. */
 async function send(method: Method, path: string, body?: unknown, options: RequestOptions = {}): Promise<Response> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
+  const headers: Record<string, string> = { ...options.headers, Accept: 'application/json' }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (!options.anonymous) headers.Authorization = `Bearer ${await bearer()}`
 
@@ -135,6 +137,6 @@ export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   download,
   post: <T>(path: string, body: unknown, options?: RequestOptions) => request<T>('POST', path, body, options),
-  put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
-  delete: <T>(path: string) => request<T>('DELETE', path),
+  put: <T>(path: string, body: unknown, options?: RequestOptions) => request<T>('PUT', path, body, options),
+  delete: <T>(path: string, options?: RequestOptions) => request<T>('DELETE', path, undefined, options),
 }

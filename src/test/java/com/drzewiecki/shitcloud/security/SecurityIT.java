@@ -73,6 +73,16 @@ class SecurityIT extends IntegrationTest {
     }
 
     @Test
+    void preflight_allowsTheHeaderThatNamesTheAppOnScreen() throws Exception {
+        mvc.perform(options("/api/data/kalendarz/days/query")
+                        .header("Origin", "http://localhost:3000")
+                        .header("Access-Control-Request-Method", "POST")
+                        .header("Access-Control-Request-Headers", "authorization, content-type, x-shitcloud-app"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:3000"));
+    }
+
+    @Test
     void preflightFromAnotherOrigin_isRefused() throws Exception {
         mvc.perform(options("/api/me")
                         .header("Origin", "https://attacker.example")

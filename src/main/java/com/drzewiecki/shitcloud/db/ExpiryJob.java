@@ -11,9 +11,9 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 
 /**
- * Removes old app versions and old document history once a night. PostgreSQL has no TTL indexes, so the
- * retention in {@code apps.version-ttl} and {@code data.history-ttl} is enforced here; rows live up to a day past
- * it. One API instance runs this; scaled out, it would need a lock.
+ * Removes old app versions, old document history and unused dependency-log rows once a night. PostgreSQL has no
+ * TTL indexes, so the retention in {@code apps.version-ttl}, {@code data.history-ttl} and {@code data.deps-ttl} is
+ * enforced here; rows live up to a day past it. One API instance runs this; scaled out, it would need a lock.
  */
 @Component
 public class ExpiryJob {
@@ -43,6 +43,9 @@ public class ExpiryJob {
         int history = jdbc.sql("delete from doc_history where changed_at < ?")
                 .param(Timestamps.of(now.minus(data.historyTtl())))
                 .update();
-        log.info("Expired {} app versions and {} history entries", versions, history);
+        int deps = jdbc.sql("delete from app_deps where last_seen_at < ?")
+                .param(Timestamps.of(now.minus(data.depsTtl())))
+                .update();
+        log.info("Expired {} app versions, {} history entries and {} unused dependencies", versions, history, deps);
     }
 }

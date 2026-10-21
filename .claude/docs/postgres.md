@@ -12,13 +12,14 @@ syntax was kept on purpose.)
 | `app_versions` | every deploy: `app_slug` → `apps`, `version` (unique per app), html, `author`, `created_at` |
 | `docs` | app data: `space` (= app slug, FK → `apps`), `collection`, `doc_id` (unique per space+collection), `data jsonb`, `version`, created/updated by/at |
 | `doc_history` | earlier states: same identity + `version`, `op` (`update`/`delete`), previous `data`, previous `updated_by/at`, `changed_by/at` — no FK, outlives a deleted app |
+| `app_deps` | dependency log: `reader` app, `space`, `collection`, `mode` (`read`/`write`), first/last seen; PK `(space, collection, mode, reader)`; both slugs FK → `apps` on delete cascade |
 | `flyway_schema_history` | Flyway's own bookkeeping |
 
 - Schema only through **Flyway** migrations (`src/main/resources/db/migration/V<n>__<what>.sql`), applied at
   startup. Never edit an applied migration — add the next one.
 - Access only through Spring **`JdbcClient`** with hand-written SQL (no JPA). Timestamps are `timestamptz`; the
   driver speaks `OffsetDateTime`, so `db/Timestamps` converts to/from `Instant`.
-- Retention: `apps.version-ttl` / `data.history-ttl` (90 days), enforced by `db/ExpiryJob` at 03:30 every night
+- Retention: `apps.version-ttl` / `data.history-ttl` / `data.deps-ttl` (90 days), enforced by `db/ExpiryJob` at 03:30 every night
   (`db.expiry-cron`). Postgres has no TTL indexes. One API instance — a lock is needed if it is ever scaled out.
 
 ## Writes

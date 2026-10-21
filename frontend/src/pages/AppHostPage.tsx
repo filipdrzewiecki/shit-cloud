@@ -1,10 +1,11 @@
 import { useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useApp, useMe, useRestore } from '../api/queries'
+import { useApp, useDeps, useMe, useRestore } from '../api/queries'
 import type { AppDetail } from '../api/types'
 import { AppFrame } from '../shell/AppFrame'
 import { useAppBridge } from '../shell/useAppBridge'
 import { AppManageMenu } from './AppManageMenu'
+import { otherUsers } from './usedBy'
 
 /**
  * The host page: an app name bar over the app's iframe, and the bridge that
@@ -62,8 +63,32 @@ function HostedApp({ slug, detail }: { slug: string; detail: AppDetail }) {
           {restore.isError && <span className="error-text">{restore.error.message}</span>}
         </div>
       )}
+      {builder && <UsedBy slug={slug} />}
       {/* Keyed by version: a replaced HTML lives at the same address, so the frame must reload to show it. */}
       <AppFrame key={summary.version} ref={frameRef} src={frameUrl} title={summary.name} />
     </section>
+  )
+}
+
+/** Which other apps read or wrote this app's data — what a change to its data shape may break. */
+function UsedBy({ slug }: { slug: string }) {
+  const deps = useDeps(slug, true)
+  const users = deps.data ? otherUsers(deps.data, slug) : []
+  if (users.length === 0) return null
+
+  return (
+    <p className="used-by muted">
+      Its data is used by{' '}
+      {users.map((user, i) => (
+        <span key={user.slug}>
+          {i > 0 && ', '}
+          <Link to={`/apps/${user.slug}`} title={`Collections: ${user.collections.join(', ')}`}>
+            {user.name}
+          </Link>
+          {user.archived && ' (archived)'}
+        </span>
+      ))}
+      .
+    </p>
   )
 }

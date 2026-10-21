@@ -97,7 +97,8 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        // X-ShitCloud-App: the host page names the app on screen for the dependency log (DataController).
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-ShitCloud-App"));
         // The preflight answer is stable, so re-asking on every request buys nothing but latency.
         configuration.setMaxAge(3600L);
 

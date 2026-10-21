@@ -110,6 +110,22 @@ All calls are **async** (return Promises) — always `await` them and handle err
   }
   ```
 
+### Reading another app's data
+
+An app may **read** (never change) the data of another ShitCloud app, by that app's slug — the last part of its
+address, e.g. `team-calendar`:
+
+```js
+const calendar = shitcloud.db.space('team-calendar');
+const marks = await calendar.find('marks', { date: { $gte: '2026-10-01' } }, { sort: { date: 1 } });
+// same filters, options and flat documents as db.find; find is the only call — no set, add or remove
+```
+
+- Ask the person which app and collections to use, or which fields the documents have — you cannot see them.
+- The other app's owners may change its data shape at any time: read defensively (missing fields, other values)
+  and show an empty state rather than crashing. ShitCloud records which app reads which data and warns them.
+- An app that does not exist (or was deleted) fails with `NO_SUCH_APP`.
+
 ### Several people at once
 
 - **Last write wins.** Two people saving the same document at the same moment: the later one stays. Every
@@ -132,6 +148,7 @@ Rejected promises are `Error`s with a `code`:
 |---|---|
 | `NOT_IN_SHITCLOUD` | the app was opened outside ShitCloud (see below) |
 | `BAD_REQUEST` | invalid filter, name, id or data (`message` says what) |
+| `NO_SUCH_APP` | `space(slug)` names an app that does not exist |
 | `VERSION_CONFLICT` | `expectedVersion` did not match |
 | `CONFLICT` | too many simultaneous writes to one document — retry |
 | `TOO_LARGE` | document over 256 KB |

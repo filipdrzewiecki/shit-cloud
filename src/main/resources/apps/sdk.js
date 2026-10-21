@@ -70,12 +70,28 @@
     return flat;
   }
 
+  function find(space, collection, filter, options) {
+    options = options || {};
+    return request('find', { space: space, collection: collection, filter: filter, sort: options.sort,
+      limit: options.limit }).then(function (docs) { return docs.map(flatten); });
+  }
+
   var db = Object.freeze({
     // find('days', {userId: me.id, date: {$gte: '2026-10-01'}}, {sort: {date: 1}, limit: 100})
     find: function (collection, filter, options) {
-      options = options || {};
-      return request('find', { collection: collection, filter: filter, sort: options.sort, limit: options.limit })
-        .then(function (docs) { return docs.map(flatten); });
+      return find(undefined, collection, filter, options);
+    },
+    // space('team-calendar').find('marks', filter, options) reads another app's data. Read-only: find is all
+    // there is, so another app's data cannot be changed from here.
+    space: function (slug) {
+      return Object.freeze({
+        find: function (collection, filter, options) {
+          if (typeof slug !== 'string' || slug === '') {
+            return Promise.reject(failure('BAD_REQUEST', 'space() needs the slug of an app'));
+          }
+          return find(slug, collection, filter, options);
+        }
+      });
     },
     // set('days', 'filip_2026-10-20', {type: 'off'}) creates or replaces; {expectedVersion} guards against
     // overwriting someone else's change (VERSION_CONFLICT).
@@ -96,7 +112,7 @@
 
   Object.defineProperty(window, 'shitcloud', {
     value: Object.freeze({
-      version: 2,
+      version: 3,
       // {id, displayName, guest} of the person using the app.
       me: function () { return request('me', {}); },
       db: db

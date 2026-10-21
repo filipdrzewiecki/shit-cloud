@@ -41,7 +41,8 @@ public class BuildChatPrompt {
                 Then change it with `edit_draft`; until the first draft, the edits apply to the deployed app. \
                 Before touching code that reads or writes data, look at the app's documents with `sample_docs` \
                 (`list_spaces` names its collections). Keep its collections and document shapes unless the user \
-                asks otherwise: other people's data is stored in them.""".formatted(targetSlug);
+                asks otherwise: other people's data is stored in them, and other apps may read it — call \
+                `get_deps` with `%1$s` before changing how its data is stored.""".formatted(targetSlug);
     }
 
     private static String read(String path) {

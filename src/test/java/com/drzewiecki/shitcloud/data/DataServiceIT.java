@@ -241,6 +241,36 @@ class DataServiceIT extends IntegrationTest {
                         e -> assertThat(e.code()).isEqualTo(DataException.TOO_LARGE));
     }
 
+    @Test
+    void spaces_listAppsThatAreNotArchived_withTheirCollectionsAndCounts() {
+        set("a", Map.of("n", 1), "guest:Anna");
+        set("b", Map.of("n", 2), "guest:Anna");
+        data.set(APP, "people", "anna", new DataWrite(Map.of("name", "Anna"), null), "guest:Anna");
+        appRegistry.deploy(new DeployRequest("Lunch", "Votes", "<p>x</p>"), BUILDER_EMAIL);
+        appRegistry.deploy(new DeployRequest("Old", null, "<p>x</p>"), BUILDER_EMAIL);
+        data.set("old", "things", "t", new DataWrite(Map.of("n", 1), null), "guest:Anna");
+        appRegistry.archive("old", BUILDER_EMAIL);
+
+        assertThat(data.spaces()).containsExactly(
+                new SpaceSummary(APP, "Kalendarz", null, Map.of("days", 2L, "people", 1L)),
+                new SpaceSummary("lunch", "Lunch", "Votes", Map.of()));
+    }
+
+    @Test
+    void sample_returnsTheNewestDocumentsOfOneCollection() {
+        set("a", Map.of("n", 1), "guest:Anna");
+        set("b", Map.of("n", 2), "guest:Anna");
+        set("c", Map.of("n", 3), "guest:Anna");
+        set("a", Map.of("n", 4), "guest:Tomek");
+        data.set(APP, "people", "anna", new DataWrite(Map.of("name", "Anna"), null), "guest:Anna");
+
+        assertThat(data.sample(APP, "days", 2)).extracting(DocView::id).containsExactly("a", "c");
+        assertThat(data.sample(APP, "days", 5)).extracting(DocView::id).containsExactly("a", "c", "b");
+        assertThat(data.sample(APP, "nothing", 3)).isEmpty();
+        assertThatThrownBy(() -> data.sample("nope", "days", 3)).isInstanceOfSatisfying(DataException.class,
+                e -> assertThat(e.code()).isEqualTo(DataException.NO_SUCH_APP));
+    }
+
     private DocView set(String id, Map<String, Object> fields, String caller) {
         return data.set(APP, "days", id, new DataWrite(fields, null), caller);
     }

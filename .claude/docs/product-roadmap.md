@@ -72,15 +72,26 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
   the build screen; live preview in the same sandbox/origin model as production. Includes the
   draft-preview fix: `DraftFrame` gets `<base href>` to the apps origin so `/_lib/` loads in previews
   (`.claude/docs/app-origin.md`, known gap) — pull it forward if Upload previews hurt before then.
-- [~] **SHC-0009 — ShitCloud tools + system prompt.** `list_spaces`, `sample_docs`, `get_app`,
+- [x] **SHC-0009 — ShitCloud tools + system prompt.** `list_spaces`, `sample_docs`, `get_app`,
   `save_draft`; SDK docs in the system prompt; iterate on prompt quality against the 4/5 criterion.
+  *Closed on the owner's order (2026-10-21) with `edit_draft` added; the tools are live with `604060a`. Tests added after
+  closing (not yet run by the owner): `DataPartsTest`, `EditDraftToolTest`, `SampleDocsToolTest`,
+  `BuildChatControllerIT` (edits on app → draft → next message, failed edit, data tools), `DataServiceIT`
+  (`spaces`, `sample`), `toolLabels.test.ts`. **Still open:** the owner's acceptance run — five prompts, each in a
+  new conversation on `test`, pass = works without manual fixes, Phase 2 done at 4/5:*
+  1. *Lunch poll: today's options, one vote per person, live results*
+  2. *Equipment loans: who has which laptop/monitor, return date, overdue in red*
+  3. *Meeting-room booking: 3 rooms, 30-min slots, no double booking*
+  4. *Retro board: 3 columns, cards, votes, chart of votes per column*
+  5. *Change (Manage → Change with AI) team-calendar: add "Invoiced" per month, saved with Save — data survives,
+     `edit_draft` used*
 
 ## Phase 3 — Floating data
 
 **Done when:** the calendar is rewritten to a new data format without losing records, and an external
 HTML with CDN libs + localStorage is imported and works.
 
-- [ ] **SHC-0010 — Dependency log + cross-space reads.** `_deps` upserts, `shitcloud.db.space()`
+- [~] **SHC-0010 — Dependency log + cross-space reads.** `_deps` upserts, `shitcloud.db.space()`
   read-only, `get_deps` tool, warnings in chat.
 - [ ] **SHC-0011 — AI data migration.** `propose_migration`, GraalJS sandbox (no I/O), counts +
   before/after samples, human approval, old space read-only 30 days, `_migrations` audit.

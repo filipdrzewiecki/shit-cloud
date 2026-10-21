@@ -161,6 +161,7 @@ title = first 60 characters. Verified on `test` 2026-10-20: a Polish lunch-poll 
 | `edit_draft` | `edits: [{old_text, new_text}]` (1–50) | "Applied N edit(s); … B bytes" | "Edited the app (2 changes, 48 KB)" + `data-draft` |
 | `get_app` | `slug` | the source (≤ 300 KB) | "Read team-calendar" |
 | `list_spaces` | — | `[{space, name, description, collections: {name: count}}]`, non-archived apps | "Listed 7 apps and their data" |
+| `get_deps` | `space` | apps that used the space's data in 90 days, per collection, read/write, last used (`DependencyLog`) | "Checked who uses team-calendar's data (2 other apps)" |
 | `sample_docs` | `space`, `collection`, `n` (3, max 5) | newest documents, flat as the SDK returns them; strings > 200 chars and docs > 2 KB cut | "Looked at 3 documents of team-calendar / marks" |
 
 - **Edits instead of rewrites** (owner, SHC-0009 — departs from handoff §7.1): the first version of an app is a
@@ -221,7 +222,8 @@ for (;;) {
 - **SHC-0007**: done — see "Server implementation" above.
 - **SHC-0008**: done — see "Client implementation" below.
 - **SHC-0009**: done — see "ShitCloud's tools" above.
-- **SHC-0010**: `get_deps` and cross-space reads plug in as further `ChatTool`s; `list_spaces` already lists every space.
+- **SHC-0010**: done — `get_deps` (warn before changing a data shape, names the apps that read it; informs, does not
+  block) and apps reading other spaces (`space().find`), learned through `list_spaces` + `sample_docs`.
 
 ## Client implementation (SHC-0008)
 
