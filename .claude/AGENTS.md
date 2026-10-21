@@ -120,8 +120,10 @@ src/main/java/com/drzewiecki/shitcloud/
   chat/            generic, copyable build-chat core — imports nothing else from ShitCloud (ChatPackageBoundaryTest):
                    ChatEngine (own step loop over Spring AI ChatModel.stream: text → tool calls → run → next step),
                    UiStreamWriter + UiParts (AI SDK UI message stream v1), ChatTool/ToolResult (plug-in tools),
-                   HistoryMapper (saved UIMessages → prompt; only the latest data part in full), ConversationStore
-  buildchat/       ShitCloud's chat: BuildChatController (/api/chat), SaveDraftTool, GetAppTool, BuildChatPrompt
+                   HistoryMapper (saved UIMessages → prompt; only the latest data part in full), ConversationStore,
+                   DataParts (a tool reads the latest data part, e.g. the draft, via TurnContext.data())
+  buildchat/       ShitCloud's chat: BuildChatController (/api/chat), BuildChatPrompt, tools SaveDraftTool,
+                   EditDraftTool (exact-text edits), GetAppTool, ListSpacesTool, SampleDocsTool; Drafts (checks, base)
   data/            DataService (docs + doc_history, row locks), FilterTranslator (Mongo-style filter → SQL on JSONB),
                    DataProperties, records, DataException + DataExceptionHandler ({code, message} bodies)
   apps/            the apps port: AppsConnectorConfig (2nd Tomcat connector), PortFence, AppsSecurityConfig

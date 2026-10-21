@@ -153,6 +153,31 @@ title = first 60 characters. Verified on `test` 2026-10-20: a Polish lunch-poll 
 - Tests: `FakeChatModel` (scripted steps, recorded prompts) imported by `ChatIntegrationTest`; it is not a scanned
   configuration, so local dev never picks it up.
 
+## ShitCloud's tools (SHC-0009)
+
+| Tool | Input | Model reads | User sees |
+|---|---|---|---|
+| `save_draft` | `html` (whole file) | `{saved, bytes}` | "Saved the app (6 KB)" + `data-draft` |
+| `edit_draft` | `edits: [{old_text, new_text}]` (1–50) | "Applied N edit(s); … B bytes" | "Edited the app (2 changes, 48 KB)" + `data-draft` |
+| `get_app` | `slug` | the source (≤ 300 KB) | "Read team-calendar" |
+| `list_spaces` | — | `[{space, name, description, collections: {name: count}}]`, non-archived apps | "Listed 7 apps and their data" |
+| `sample_docs` | `space`, `collection`, `n` (3, max 5) | newest documents, flat as the SDK returns them; strings > 200 chars and docs > 2 KB cut | "Looked at 3 documents of team-calendar / marks" |
+
+- **Edits instead of rewrites** (owner, SHC-0009 — departs from handoff §7.1): the first version of an app is a
+  `save_draft`; every later change an `edit_draft` (exact-text replacements, each `old_text` exactly once in the file
+  as it stands after the edits before it, all or none). A whole rewrite of a large app streamed > 60 s and changed
+  code nobody asked about. A miss returns "edit N: not found / found K times — nothing was applied" for a retry.
+- **Edit base**: the conversation's latest `data-draft` — also one produced earlier in the same answer — else the
+  deployed app of `targetSlug`. Tools read it through `TurnContext.data()` (`chat/DataParts`: this answer's parts
+  first, then the saved messages, newest first; generic, knows only `data-<name>` + id). The engine fills it in;
+  the controller builds `TurnContext(caller, conversation)`.
+- The model does not get the file back after an edit within one answer (tokens); the next message carries the
+  latest draft in full through history. `get_app`'s source is not saved: a rework without a draft yet calls it again.
+- `sample_docs` sends real documents to the vendor: few and small on purpose; fine on `test` (owner's key and data),
+  company approval before a pilot (handoff §10).
+- Apps are always in English (owner, SHC-0009; rule in the builder guide, so uploaded apps too); chat replies follow
+  the user's language.
+
 **Checking the live chat without the GUI** (signed in on the GUI as a builder, DevTools console):
 ```js
 const k = Object.keys(localStorage).find(k => k.startsWith('@@auth0spajs@@') && k.includes('shit-cloud-api'));
@@ -186,13 +211,17 @@ for (;;) {
   disconnect on its next write — write often (deltas, pings) so a cancelled model call stops quickly.
 - **assistant-ui: never declare message/part components inline** in `ThreadPrimitive.Messages components={{…}}` —
   it re-mounts forever and freezes the tab without any error (React 18, 0.15.30). Module-level components fix it.
+- **The Anthropic client cuts a call off after 60 s** (Spring AI default `spring.ai.anthropic.timeout`), streaming
+  included: the stream ends in an `error` part "Stream failed". Set to `10m`, the same as
+  `spring.mvc.async.request-timeout`.
 - Escape `<` as `<` in emitted JSON (keeps `</script>` out of anything that inlines a stream).
 
 ## Consequences for the next tickets
 - **SHC-0020 (Boot 4)**: no protocol impact.
 - **SHC-0007**: done — see "Server implementation" above.
 - **SHC-0008**: done — see "Client implementation" below.
-- **SHC-0009**: tool outputs shown to the user are summaries; `get_app` for rework (U5).
+- **SHC-0009**: done — see "ShitCloud's tools" above.
+- **SHC-0010**: `get_deps` and cross-space reads plug in as further `ChatTool`s; `list_spaces` already lists every space.
 
 ## Client implementation (SHC-0008)
 

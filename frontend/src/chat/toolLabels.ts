@@ -33,6 +33,33 @@ function describe(name: string, part: ToolPartLike, phase: 'busy' | 'done' | 'fa
       const bytes = field(part.output, 'bytes')
       return typeof bytes === 'number' ? `Saved the app (${Math.max(1, Math.round(bytes / 1024))} KB)` : 'Saved the app'
     }
+    case 'edit_draft': {
+      if (phase === 'busy') return 'Editing the app…'
+      if (phase === 'failed') return 'Could not edit the app'
+      const edited = field(part.output, 'edited')
+      const bytes = field(part.output, 'bytes')
+      const changes = typeof edited === 'number' ? `${edited} ${edited === 1 ? 'change' : 'changes'}` : null
+      const size = typeof bytes === 'number' ? `${Math.max(1, Math.round(bytes / 1024))} KB` : null
+      const details = [changes, size].filter(Boolean).join(', ')
+      return details ? `Edited the app (${details})` : 'Edited the app'
+    }
+    case 'list_spaces': {
+      if (phase === 'busy') return 'Looking at the apps…'
+      if (phase === 'failed') return 'Could not list the apps'
+      const spaces = field(part.output, 'spaces')
+      return typeof spaces === 'number' ? `Listed ${spaces} ${spaces === 1 ? 'app' : 'apps'} and their data` : 'Listed the apps'
+    }
+    case 'sample_docs': {
+      const space = field(part.input, 'space')
+      const collection = field(part.input, 'collection')
+      const where = typeof space === 'string' && typeof collection === 'string' ? `${space} / ${collection}` : 'a collection'
+      if (phase === 'busy') return `Looking at documents of ${where}…`
+      if (phase === 'failed') return `Could not read documents of ${where}`
+      const docs = field(part.output, 'docs')
+      return typeof docs === 'number'
+        ? `Looked at ${docs} ${docs === 1 ? 'document' : 'documents'} of ${where}`
+        : `Looked at documents of ${where}`
+    }
     case 'get_app': {
       const slug = field(part.input, 'slug')
       const app = typeof slug === 'string' ? slug : 'the app'

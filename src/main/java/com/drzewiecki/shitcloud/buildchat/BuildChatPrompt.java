@@ -35,9 +35,13 @@ public class BuildChatPrompt {
 
                 # This conversation
 
-                The user is changing the existing app `%s`. Call `get_app` with that slug before the first change. \
-                Keep its collections and document shapes unless the user asks otherwise: other people's data is \
-                stored in them. Save the whole changed file with `save_draft`.""".formatted(targetSlug);
+                The user is changing the existing app `%1$s`, whose data lives in the space `%1$s`. \
+                Unless this conversation already has a draft of it, call `get_app` with that slug first — and again \
+                in a later message if you have not made a draft yet, as its source is not kept between messages. \
+                Then change it with `edit_draft`; until the first draft, the edits apply to the deployed app. \
+                Before touching code that reads or writes data, look at the app's documents with `sample_docs` \
+                (`list_spaces` names its collections). Keep its collections and document shapes unless the user \
+                asks otherwise: other people's data is stored in them.""".formatted(targetSlug);
     }
 
     private static String read(String path) {

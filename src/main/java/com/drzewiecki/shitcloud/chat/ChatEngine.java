@@ -83,10 +83,12 @@ public class ChatEngine {
                 out.part(UiParts.data("conversation", null,
                         Map.of("id", conversation.id(), "title", conversation.title()), true));
             }
-            List<Message> messages = prompt(turn);
+            List<UiMessage> saved = store.messages(conversation.id());
+            List<Message> messages = prompt(turn, saved);
             ChatOptions options = options(turn.tools());
+            TurnContext context = turn.context().with(DataParts.of(saved, answer.parts));
             for (int step = 1; step <= settings.maxSteps(); step++) {
-                if (!step(turn, messages, options, answer, out)) {
+                if (!step(turn, context, messages, options, answer, out)) {
                     break;
                 }
             }
@@ -110,7 +112,8 @@ public class ChatEngine {
     /**
      * One model call and, if it asked for tools, their runs. False when the answer is complete.
      */
-    private boolean step(Turn turn, List<Message> messages, ChatOptions options, Answer answer, UiStreamWriter out) {
+    private boolean step(Turn turn, TurnContext context, List<Message> messages, ChatOptions options, Answer answer,
+                         UiStreamWriter out) {
         out.part(UiParts.startStep());
         answer.parts.add(Map.of("type", "step-start"));
 
@@ -149,7 +152,8 @@ public class ChatEngine {
         messages.add(AssistantMessage.builder().content(text).toolCalls(calls).build());
         List<ToolResponseMessage.ToolResponse> results = new ArrayList<>();
         for (AssistantMessage.ToolCall call : calls) {
-            results.add(new ToolResponseMessage.ToolResponse(call.id(), call.name(), runTool(turn, call, answer, out)));
+            results.add(new ToolResponseMessage.ToolResponse(call.id(), call.name(),
+                    runTool(turn, context, call, answer, out)));
         }
         messages.add(ToolResponseMessage.builder().responses(results).build());
         out.part(UiParts.finishStep());
@@ -159,7 +163,8 @@ public class ChatEngine {
     /**
      * @return what the model reads as the tool's result
      */
-    private String runTool(Turn turn, AssistantMessage.ToolCall call, Answer answer, UiStreamWriter out) {
+    private String runTool(Turn turn, TurnContext context, AssistantMessage.ToolCall call, Answer answer,
+                           UiStreamWriter out) {
         Map<String, Object> input = input(call);
         out.part(UiParts.toolInputAvailable(call.id(), call.name(), input));
         ChatTool tool = turn.tools().stream().filter(t -> t.name().equals(call.name())).findFirst().orElse(null);
@@ -175,7 +180,7 @@ public class ChatEngine {
             if (tool == null) {
                 throw new ChatTool.ToolException("There is no tool " + call.name());
             }
-            result = tool.run(input, turn.context());
+            result = tool.run(input, context);
         } catch (ChatTool.ToolException e) {
             return toolError(call, e.getMessage(), part, out);
         } catch (RuntimeException e) {
@@ -210,8 +215,7 @@ public class ChatEngine {
         }
     }
 
-    private List<Message> prompt(Turn turn) {
-        List<UiMessage> saved = store.messages(turn.context().conversation().id());
+    private List<Message> prompt(Turn turn, List<UiMessage> saved) {
         List<UiMessage> recent = new ArrayList<>(saved.subList(Math.max(0, saved.size() - settings.historyMessages()),
                 saved.size()));
         // The model API wants the conversation to open with the user.

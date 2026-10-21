@@ -17,8 +17,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SaveDraftToolTest {
 
-    private final SaveDraftTool tool = new SaveDraftTool(
-            new AppsProperties(Duration.ofDays(90), DataSize.ofBytes(100), false, 8081, "http://apps/{slug}/"));
+    private final SaveDraftTool tool = new SaveDraftTool(new Drafts(
+            new AppsProperties(Duration.ofDays(90), DataSize.ofBytes(100), false, 8081, "http://apps/{slug}/")));
 
     private final TurnContext rework = new TurnContext("b@example.com",
             new Conversation("c_1", "b@example.com", "T", "lunch-poll", Instant.now(), Instant.now()));

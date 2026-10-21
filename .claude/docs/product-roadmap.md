@@ -72,7 +72,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
   the build screen; live preview in the same sandbox/origin model as production. Includes the
   draft-preview fix: `DraftFrame` gets `<base href>` to the apps origin so `/_lib/` loads in previews
   (`.claude/docs/app-origin.md`, known gap) — pull it forward if Upload previews hurt before then.
-- [ ] **SHC-0009 — ShitCloud tools + system prompt.** `list_spaces`, `sample_docs`, `get_app`,
+- [~] **SHC-0009 — ShitCloud tools + system prompt.** `list_spaces`, `sample_docs`, `get_app`,
   `save_draft`; SDK docs in the system prompt; iterate on prompt quality against the 4/5 criterion.
 
 ## Phase 3 — Floating data

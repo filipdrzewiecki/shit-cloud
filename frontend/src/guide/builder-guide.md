@@ -8,7 +8,7 @@ so an app that ignores them simply breaks.
 
 - **One self-contained `.html` file**: HTML, CSS and JavaScript inline. No build step, no npm, no other files.
 - Under 5 MB. Images only as inline `data:` URIs or inline SVG.
-- Labels in the language the user writes to you in.
+- All labels and texts of the app in **English**, whatever language the user writes to you in.
 
 ## Hard rules (enforced by the browser — not negotiable)
 

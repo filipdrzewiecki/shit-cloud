@@ -97,6 +97,48 @@ public class DataService {
     }
 
     /**
+     * Every app that is not archived, with its collections and how many documents each holds — what the build chat
+     * sees of the data. An app without data has no collections.
+     */
+    public List<SpaceSummary> spaces() {
+        Map<String, SpaceSummary> spaces = new LinkedHashMap<>();
+        jdbc.sql("""
+                        select a.slug, a.name, a.description, d.collection, count(d.id) as docs
+                        from apps a left join docs d on d.space = a.slug
+                        where not a.archived
+                        group by a.slug, a.name, a.description, d.collection
+                        order by a.slug, d.collection""")
+                .query((row, i) -> {
+                    String slug = row.getString("slug");
+                    String name = row.getString("name");
+                    String description = row.getString("description");
+                    SpaceSummary space = spaces.computeIfAbsent(slug,
+                            s -> new SpaceSummary(s, name, description, new LinkedHashMap<>()));
+                    String collection = row.getString("collection");
+                    if (collection != null) {
+                        space.collections().put(collection, row.getLong("docs"));
+                    }
+                    return space;
+                })
+                .list();
+        return List.copyOf(spaces.values());
+    }
+
+    /**
+     * The newest documents of a collection, for the build chat to learn their shape (no schemas exist).
+     */
+    public List<DocView> sample(String space, String collection, int n) {
+        requireCollection(space, collection);
+        return jdbc.sql("select * from docs where space = ? and collection = ? order by updated_at desc, id desc limit ?")
+                .params(space, collection, n)
+                .query(docMapper)
+                .list()
+                .stream()
+                .map(DocView::of)
+                .toList();
+    }
+
+    /**
      * Creates or replaces a document. Without {@code expectedVersion} the last write wins; every replaced state is
      * still kept in history. {@code expectedVersion} 0 means "only if it does not exist yet".
      */

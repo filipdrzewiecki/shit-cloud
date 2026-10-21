@@ -66,6 +66,9 @@ PostgreSQL — tables, SQL and the filter translation are in `.claude/docs/postg
   values. Depth ≤ 8, lists ≤ 500, sort ≤ 4 keys, default order `created_at` then `id`.
 - Collection `[A-Za-z0-9_-]{1,64}`, id `[A-Za-z0-9_.:@-]{1,128}`, `data` an object ≤ 256 KB (JSON bytes),
   nesting ≤ 32, field names without `.` or leading `$`. `limit` 1–1000 (default 1000).
+- The build chat reads data too, outside the Data API: `DataService.spaces()` (non-archived apps, collections, counts)
+  and `sample(space, collection, n)` (newest first) behind `list_spaces` / `sample_docs` — builder-only, at most
+  5 documents cut to ~2 KB each, sent to the model vendor (`chat-protocol.md`, "ShitCloud's tools").
 - Error bodies `{code, message}` come from `DataExceptionHandler`, scoped to `DataController` only — Spring's default
   error body hides reasons, and enabling messages globally could leak 500 details.
 
