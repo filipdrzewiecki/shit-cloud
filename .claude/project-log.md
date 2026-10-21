@@ -2,6 +2,20 @@
 
 What each closed ticket delivered, newest first. Durable details live in the files each entry points to.
 
+## SHC-0009 — ShitCloud tools + system prompt (closed 2026-10-21)
+
+- The build chat edits apps in place: `edit_draft` (exact-text replacements on the latest draft, or the deployed app
+  before the first draft; all or none; a miss says which edit and why). Owner's addition — departs from handoff
+  §7.1's "whole file every time" after a team-calendar rewrite ran past the 60 s client timeout.
+- `list_spaces` (non-archived apps, collections, counts) and `sample_docs` (≤ 5 newest documents, ~2 KB each) let
+  the model keep existing data shapes; real documents go to the vendor (fine on `test`, approval before a pilot).
+- Generic hook in `chat/`: `DataParts` via `TurnContext.data()` — a tool reads the latest data part.
+- Prompt: `save_draft` for the first version, `edit_draft` for every change, look at data before touching it; apps
+  always in English (also in the builder guide), chat replies in the user's language.
+- Live with `604060a`. Closed on the owner's order before the acceptance run (listed under SHC-0009 in
+  `.claude/docs/product-roadmap.md`); the tests were written right after closing.
+- Reference: `.claude/docs/chat-protocol.md` ("ShitCloud's tools"), `.claude/docs/data-api.md`.
+
 ## SHC-0019 — Manage a deployed app (closed 2026-10-20)
 
 - Builders archive (hidden, data kept, still opens with a Restore bar), restore, replace an app's HTML in place, and
