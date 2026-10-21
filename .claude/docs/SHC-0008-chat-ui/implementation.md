@@ -44,6 +44,10 @@ Phase 3 approved with D1–D4 as proposed ("go, no gates for phase 3").
   notice).
 - Local browser check: dev servers started (`:8080`, `:3000`), but the Chrome extension failed ("No group with id")
   twice — left to the owner (locally or on `test` after deploy).
+- On `test` (owner): a new app works; "Change with AI" on team-calendar ended in **"Stream failed"** right after
+  `get_app`. Cause: Spring AI's Anthropic client caps one call at 60 s (`AnthropicSetup.DEFAULT_TIMEOUT`),
+  streaming included; the SDK wraps the cut-off as `IOException("Stream failed")`. Rewriting a large app streams
+  its whole HTML into `save_draft` for longer. Fix: `spring.ai.anthropic.timeout=10m` (= the SSE request timeout).
 
 # Phase 4 — Tests
 - added (frontend): `chat/boundary.test.ts`, `chat/drafts.test.ts`, `chat/serverChat.test.ts`,
