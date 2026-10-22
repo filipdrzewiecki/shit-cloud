@@ -8,7 +8,7 @@ import java.util.Map;
  * and {@code updatedAt} describe that earlier state; {@code changedBy}/{@code changedAt} the change that
  * replaced it. Removed by {@code ExpiryJob} after {@code data.history-ttl}.
  *
- * @param op {@code update} or {@code delete}
+ * @param op what replaced the state: {@code update}, {@code delete}, {@code migrate}, {@code undo} or {@code restore}
  */
 public record HistoryRecord(
         Long id,

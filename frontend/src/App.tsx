@@ -7,6 +7,7 @@ import { useMe } from './api/queries'
 import { clearGuest, useGuestSession } from './auth/guestSession'
 import { signInPath } from './auth/returnTo'
 import { AppHostPage } from './pages/AppHostPage'
+import { DataHistoryPage } from './pages/DataHistoryPage'
 import { AppListPage } from './pages/AppListPage'
 import { BuilderGuidePage } from './pages/BuilderGuidePage'
 import { BuildPage } from './pages/BuildPage'
@@ -63,6 +64,14 @@ export function App() {
       >
         <Route index element={<AppListPage />} />
         <Route path="apps/:slug" element={<AppHostPage />} />
+        <Route
+          path="apps/:slug/data"
+          element={
+            <BuildersOnly>
+              <DataHistoryPage />
+            </BuildersOnly>
+          }
+        />
         <Route
           path="build"
           element={

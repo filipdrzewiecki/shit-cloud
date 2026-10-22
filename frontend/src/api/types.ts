@@ -130,3 +130,46 @@ export interface MigrationUndo {
   removed: number
   htmlVersion: number | null
 }
+
+/** A collection on the Data & history page; `removed` = documents gone whose last state is in history. */
+export interface CollectionSummary {
+  collection: string
+  documents: number
+  removed: number
+}
+
+/** One line of a collection's document list (current or removed). */
+export interface DocSummary {
+  id: string
+  removed: boolean
+  version: number
+  /** Who wrote the current state, or who removed the document; `updatedAt` when. */
+  updatedBy: string
+  updatedAt: string
+  /** The start of the document's JSON. */
+  preview: string
+}
+
+export interface DocPage {
+  items: DocSummary[]
+  hasMore: boolean
+}
+
+/** An earlier state of a document. `op` is what replaced it. */
+export interface HistoryView {
+  historyId: number
+  version: number
+  op: 'update' | 'delete' | 'migrate' | 'undo' | 'restore'
+  data: Record<string, unknown>
+  updatedBy: string
+  updatedAt: string
+  changedBy: string
+  changedAt: string
+}
+
+export interface DocHistory {
+  /** The document now (as the Data API returns it); null when removed. */
+  current: DocView | null
+  versions: HistoryView[]
+  truncated: boolean
+}

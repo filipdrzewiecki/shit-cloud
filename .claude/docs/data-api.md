@@ -50,9 +50,9 @@ const marks = await shitcloud.db.space('team-calendar').find('marks', {...});  /
 PostgreSQL — tables, SQL and the filter translation are in `.claude/docs/postgres.md`.
 - `docs`: `space`, `collection`, `doc_id`, `data jsonb` (the app's fields), `version`, created/updated by/at;
   unique `(space, collection, doc_id)` (also the index every query uses); `space` → `apps` foreign key.
-- `doc_history`: the **previous** state (`version`, `data`, `updated_by/at`) + `op` (`update`/`delete`),
-  `changed_by/at`; removed by `ExpiryJob` after `data.history-ttl` (90d); index `(space, collection, doc_id,
-  version)` for restore (SHC-0012).
+- `doc_history`: the **previous** state (`version`, `data`, `updated_by/at`) + `op` (what replaced it:
+  `update`/`delete`/`migrate`/`undo`/`restore`), `changed_by/at`; removed by `ExpiryJob` after `data.history-ttl`
+  (90d); index `(space, collection, doc_id, version)`. Browsed and restored on the Data & history page (below).
 - `set`/`remove` run in a transaction that first locks the document's row (`FOR UPDATE`), then writes history,
   then updates/deletes. Concurrent writers to one document queue up instead of failing, so there is no retry loop.
   `expectedVersion` mismatch → 409 `VERSION_CONFLICT`; `expectedVersion: 0` = must not exist yet.
@@ -85,12 +85,31 @@ PostgreSQL — tables, SQL and the filter translation are in `.claude/docs/postg
 - Error bodies `{code, message}` come from `DataExceptionHandler`, scoped to `DataController` only — Spring's default
   error body hides reasons, and enabling messages globally could leak 500 details.
 
+## Data & history page (builders, SHC-0012)
+
+- `/apps/:slug/data` (Manage → "🕘 Data & history"): collection tabs with current and removed counts, the records
+  newest change first (offset pages of 50, id-prefix filter taken literally, "Removed records" switch), and a
+  record's earlier states, newest first (≤ 200), each with its fields marked against the current state
+  (`pages/fieldDiff.ts`) and "before a data change" for states at or before a `migrate` row. Shown raw (JSON): no
+  schema exists. Owner: builders only, single records only, no hand editing, no app-wide change feed.
+- API (`controller/HistoryController`, reads in `data/HistoryService`): `GET /api/apps/{slug}/data`,
+  `…/data/{collection}?removed&prefix&offset&limit` → `{items, hasMore}`, `…/{collection}/{id}/history`,
+  `POST …/{collection}/{id}/restore {historyId, expectedVersion}`.
+- A removed record = an id in `doc_history` with no `docs` row; listed by its newest history row (`distinct on`),
+  "removed by" = that row's `changed_by/at`.
+- **Restore** (`DataService.restore`) is a write: shared space lock, the history row must be that document's (404
+  `NO_SUCH_VERSION`), version guard (`expectedVersion` = what the builder saw, 0 = removed; else 409
+  `VERSION_CONFLICT`, the GUI reloads the record); the replaced state goes to history as `restore`; a removed record
+  comes back at history's highest version + 1, created by the builder. Never rewrites history.
+- The page takes the app name from the list, not `GET /api/apps/{slug}` (that would mark the app used).
+
 ## Known gaps
 
 - Path mode on `test`: a same-origin app in another tab could script another app's frame and use its bridge.
 - Drafts (Build/Upload `srcdoc` previews) have no SDK and no bridge — owner's decision in SHC-0008 (the preview
   says data works after deploying); an in-memory sandbox store behind the bridge was the rejected alternative.
-- History UI/restore (SHC-0012), rate limits (parked).
+- Rate limits (parked). Version numbers can repeat for one id: a removed document created again through the Data API
+  starts at 1 (restore and undo continue after history's highest) — history rows are addressed by row id.
 - Converting an app's data to a new shape is the build chat's `propose_migration`, applied with Replace HTML:
   `.claude/docs/data-migrations.md` (also why every write takes a shared space lock). Dates travel as ISO strings.
 

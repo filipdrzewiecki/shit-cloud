@@ -100,7 +100,9 @@ HTML with CDN libs + localStorage is imported and works.
   place (not a new space), applied with Replace HTML, 30-day copy + undo (`data-migrations.md`). **Still open:** the
   owner's `mvn verify` and check on `test` — e.g. have the chat change how team-calendar stores its days, replace,
   confirm no records are lost, then undo.*
-- [ ] **SHC-0012 — History browsing & restore.** Builder panel: document history, restore.
+- [x] **SHC-0012 — History browsing & restore.** Builder panel: document history, restore. *Closed 2026-10-22:
+  Manage → "Data & history" (`data-api.md`). **Still open:** the owner's `mvn verify` and check on `test` — e.g.
+  change and remove a team-calendar entry, then restore both.*
 - [ ] **SHC-0013 — Import from disk with AI adaptation.** Agent rewrites CDN/fetch/localStorage,
   change list, side-by-side before/after preview, size limit.
 

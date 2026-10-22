@@ -11,7 +11,7 @@ import { UndoMigrationDialog } from './UndoMigrationDialog'
 /**
  * "⋯ Manage" on the host page. Everyone can download the app and its data (they
  * can read all of it through the app anyway); builders also change it with the
- * build chat, replace, archive, restore and delete it, and undo the chat's latest data change while its copy is
+ * build chat, replace, archive, restore and delete it, browse its data and history, and undo the chat's latest data change while its copy is
  * kept.
  */
 export function AppManageMenu({ detail, builder }: { detail: AppDetail; builder: boolean }) {
@@ -87,6 +87,9 @@ export function AppManageMenu({ detail, builder }: { detail: AppDetail; builder:
               </button>
               <button type="button" role="menuitem" onClick={run(() => setDialog('replace'))}>
                 ⇪ Replace HTML…
+              </button>
+              <button type="button" role="menuitem" onClick={run(() => navigate(`/apps/${app.slug}/data`))}>
+                🕘 Data &amp; history
               </button>
               {undoable && (
                 <>

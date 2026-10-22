@@ -117,7 +117,8 @@ code and report findings. Compiling (`mvn -q compile`) and typechecking the fron
 src/main/java/com/drzewiecki/shitcloud/
   Application.java
   controller/      AppController, MeController, PlatformController, GuestLoginController, DataController,
-                   DepsController (/api/deps/{space}), MigrationController
+                   DepsController (/api/deps/{space}), MigrationController,
+                   HistoryController (/api/apps/{slug}/data…)
   chat/            generic, copyable build-chat core — imports nothing else from ShitCloud (ChatPackageBoundaryTest):
                    ChatEngine (own step loop over Spring AI ChatModel.stream: text → tool calls → run → next step),
                    UiStreamWriter + UiParts (AI SDK UI message stream v1), ChatTool/ToolResult (plug-in tools),
@@ -129,7 +130,8 @@ src/main/java/com/drzewiecki/shitcloud/
                    Drafts (checks, base)
   data/            DataService (docs + doc_history, row locks), FilterTranslator (Mongo-style filter → SQL on JSONB),
                    DataProperties, records, DataException + DataExceptionHandler ({code, message} bodies),
-                   DependencyLog (app_deps: which app used which data, from the X-ShitCloud-App header)
+                   DependencyLog (app_deps: which app used which data, from the X-ShitCloud-App header),
+                   HistoryService (Data & history page reads; restore is DataService.restore)
   migration/       MigrationService (check, apply with Replace HTML, undo, copy), MigrationSandbox (GraalJS, CONSTRAINED),
                    MigrationProperties, records — data-migrations.md
   apps/            the apps port: AppsConnectorConfig (2nd Tomcat connector), PortFence, AppsSecurityConfig
@@ -144,7 +146,7 @@ src/main/java/com/drzewiecki/shitcloud/
 src/main/resources/
   application.properties, application-dev.properties
   db/migration/    Flyway SQL migrations (V1 apps, app_versions, docs, doc_history; V2 archive; V3 chat_conversations,
-                   chat_messages; V4 app_deps; V5 migrations, migration_docs)
+                   chat_messages; V4 app_deps; V5 migrations, migration_docs; V6 history op restore)
   build-chat/      chat-rules.md (system prompt preamble); builder-guide.md is copied in from frontend/src/guide by
                    the build (pom resources + Dockerfile) — one guide for /guide and the chat
   sample-apps/     seed HTML apps for the mockup
@@ -156,7 +158,8 @@ frontend/src/
   chat/            the build chat's UI, copyable (boundary.test.ts forbids GUI imports): ChatPanel (useChat +
                    own parts, Stop, "Working… N s"), serverChat.ts (transport: own fetch, sends only the new message),
                    drafts.ts, toolLabels.ts, Markdown (react-markdown), chat.css (own vars, GUI tokens as fallback)
-  pages/           SignInPage, AppListPage, AppHostPage (+ AppManageMenu: "Change with AI"), BuildPage
+  pages/           SignInPage, AppListPage, AppHostPage (+ AppManageMenu: "Change with AI", "Data & history"),
+                   DataHistoryPage (/apps/:slug/data), BuildPage
                    (conversations · ChatPanel · preview; ?c=<id> / ?app=<slug>), ReplaceBar, UploadPage, DeployBar,
                    BuilderGuidePage
   guide/           builder-guide.md: the app rules written for an AI assistant (shown at /guide, copied by builders)
@@ -180,6 +183,8 @@ Every endpoint requires `Authorization: Bearer <token>` (Auth0 or guest) unless 
 | POST | `/api/apps` | builder | Deploy `{name, description?, html}`; same name → new version (kept 90 days in `app_versions`); owner = creator, `updatedBy` = caller; 413 over 5 MB, 409 concurrent deploy; un-archives an archived app |
 | POST | `/api/apps/{slug}/archive` · `/restore` | builder | Hide from the list (data, HTML, versions kept; `archivedAt/By` recorded) · bring back |
 | PUT  | `/api/apps/{slug}/html` | builder | `{html, migrationId?}` → next version of that app; name, description, archive state unchanged; with `migrationId` the chat's checked data change is applied in the same transaction (409 `MIGRATION_STALE` / `MIGRATION_FAILED`) |
+| GET  | `/api/apps/{slug}/data` · `/data/{collection}?removed&prefix&offset&limit` · `/data/{collection}/{id}/history` | builder | Data & history: collections (current/removed counts) · a page of records `{items, hasMore}` · a record now + earlier states |
+| POST | `/api/apps/{slug}/data/{collection}/{id}/restore` | builder | `{historyId, expectedVersion}` → the earlier state as the next version; 409 `VERSION_CONFLICT` if changed since, 404 `NO_SUCH_VERSION` |
 | GET  | `/api/apps/{slug}/migrations` | builder | Data changes applied to the app, newest first (`undoable`, `copyUntil`) |
 | POST | `/api/migrations/{id}/undo` | builder | Documents and HTML back as before the change → `{restored, removed, htmlVersion}`; latest change only, while its copy is kept |
 | GET  | `/api/migrations/{id}/copy` | builder | The documents as they were before → `<slug>-before-change-<id>.json` |
@@ -195,7 +200,7 @@ Every endpoint requires `Authorization: Bearer <token>` (Auth0 or guest) unless 
 | DELETE | `/api/data/{space}/{collection}/{id}` | signed in | `?expectedVersion=` → `{deleted}`; last state → `doc_history` |
 
 Data API errors are `{code, message}` (`BAD_REQUEST`, `NO_SUCH_APP`, `VERSION_CONFLICT`, `CONFLICT`, `TOO_LARGE`;
-migrations: `MIGRATION_STALE`, `MIGRATION_FAILED`, `NO_SUCH_MIGRATION`);
+migrations: `MIGRATION_STALE`, `MIGRATION_FAILED`, `NO_SUCH_MIGRATION`; history: `NO_SUCH_VERSION`);
 `space` must be an existing app. Guests read and write too.
 
 Apps port (public, no token): `GET /{slug}/` (path mode; `/{slug}` redirects) or `GET /` (host mode) → the app's

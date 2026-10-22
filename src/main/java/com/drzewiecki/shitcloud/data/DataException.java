@@ -17,6 +17,8 @@ public class DataException extends RuntimeException {
     /** The migration is not (or no longer) the one that can be applied or undone. */
     public static final String MIGRATION_STALE = "MIGRATION_STALE";
     public static final String NO_SUCH_MIGRATION = "NO_SUCH_MIGRATION";
+    /** No such earlier state of the document in history (expired after 90 days, or never existed). */
+    public static final String NO_SUCH_VERSION = "NO_SUCH_VERSION";
 
     private final HttpStatus status;
     private final String code;

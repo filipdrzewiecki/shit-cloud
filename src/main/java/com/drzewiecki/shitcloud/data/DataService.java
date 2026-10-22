@@ -274,6 +274,61 @@ public class DataService {
         return Boolean.TRUE.equals(removed);
     }
 
+    /**
+     * Puts an earlier state of a document back: it becomes the next version, and the state it replaces goes to
+     * history ({@code restore}). A removed document is created again, its version continuing after the highest one
+     * history knows. Refused when the document is no longer at {@code expectedVersion} (0 = removed), so a builder
+     * never overwrites a change made after they looked.
+     *
+     * @param historyId the {@code doc_history} row holding the state
+     */
+    public DocView restore(String space, String collection, String docId, long historyId, long expectedVersion,
+                           String caller) {
+        requireCollection(space, collection);
+        requireDocId(docId);
+        return transaction.execute(status -> {
+            lockSpaceShared(space);
+            String data = jdbc.sql("select data::text from doc_history where id = ? and space = ? and collection = ? and doc_id = ?")
+                    .params(historyId, space, collection, docId)
+                    .query(String.class)
+                    .optional()
+                    .orElseThrow(() -> new DataException(HttpStatus.NOT_FOUND, DataException.NO_SUCH_VERSION,
+                            "No earlier state " + historyId + " of " + collection + "/" + docId));
+            OffsetDateTime now = Timestamps.of(Instant.now());
+            Optional<DocRecord> current = lock(space, collection, docId);
+            if (current.isEmpty()) {
+                requireVersion(expectedVersion, 0);
+                long last = jdbc.sql("select coalesce(max(version), 0) from doc_history where space = ? and collection = ? and doc_id = ?")
+                        .params(space, collection, docId)
+                        .query(Long.class)
+                        .single();
+                // A writer creating the same document meanwhile makes this wait, then find it taken: changed since.
+                return jdbc.sql("""
+                                insert into docs (space, collection, doc_id, data, version, created_by, created_at,
+                                                  updated_by, updated_at)
+                                values (?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?)
+                                on conflict (space, collection, doc_id) do nothing
+                                returning *""")
+                        .params(space, collection, docId, data, last + 1, caller, now, caller, now)
+                        .query(docMapper)
+                        .optional()
+                        .map(DocView::of)
+                        .orElseThrow(() -> new DataException(HttpStatus.CONFLICT, DataException.VERSION_CONFLICT,
+                                "The document was created again meanwhile; look at it again"));
+            }
+            DocRecord previous = current.get();
+            requireVersion(expectedVersion, previous.version());
+            writeHistory(previous, "restore", caller, now.toInstant());
+            return DocView.of(jdbc.sql("""
+                            update docs set data = ?::jsonb, version = version + 1, updated_by = ?, updated_at = ?
+                            where id = ?
+                            returning *""")
+                    .params(data, caller, now, previous.id())
+                    .query(docMapper)
+                    .single());
+        });
+    }
+
     private DocView setLocked(String space, String collection, String docId, Map<String, Object> data,
                               Long expected, String caller) {
         OffsetDateTime now = Timestamps.of(Instant.now());
@@ -353,16 +408,20 @@ public class DataService {
         return requested;
     }
 
-    private void requireCollection(String space, String collection) {
+    void requireCollection(String space, String collection) {
         if (!COLLECTION.matcher(collection).matches()) {
             throw DataException.badRequest("Collection names are 1-64 letters, digits, _ or -");
         }
+        requireSpace(space);
+    }
+
+    void requireSpace(String space) {
         if (!appRegistry.exists(space)) {
             throw new DataException(HttpStatus.NOT_FOUND, DataException.NO_SUCH_APP, "No app " + space);
         }
     }
 
-    private static void requireDocId(String docId) {
+    static void requireDocId(String docId) {
         if (!DOC_ID.matcher(docId).matches()) {
             throw DataException.badRequest("Ids are 1-128 letters, digits or _ . : @ -");
         }

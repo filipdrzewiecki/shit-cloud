@@ -11,7 +11,7 @@ syntax was kept on purpose.)
 | `apps` | slug (PK), name, description, current `html`, `owner` (creator), `version`, `last_used_at`, `archived` + `archived_at`/`archived_by`, created/updated, `updated_by` |
 | `app_versions` | every deploy: `app_slug` → `apps`, `version` (unique per app), html, `author`, `created_at` |
 | `docs` | app data: `space` (= app slug, FK → `apps`), `collection`, `doc_id` (unique per space+collection), `data jsonb`, `version`, created/updated by/at |
-| `doc_history` | earlier states: same identity + `version`, `op` (`update`/`delete`/`migrate`/`undo`), previous `data`, previous `updated_by/at`, `changed_by/at` — no FK, outlives a deleted app |
+| `doc_history` | earlier states: same identity + `version`, `op` (`update`/`delete`/`migrate`/`undo`/`restore`), previous `data`, previous `updated_by/at`, `changed_by/at` — no FK, outlives a deleted app |
 | `migrations` | data changes by the build chat: `space` → `apps` (cascade), `collections text[]`, `code`, `summary`, `status` (`proposed`/`applied`/`undone`), `checked`/`result` counts (jsonb), html versions before/after, by/at, `copy_until` (`data-migrations.md`) |
 | `migration_docs` | the frozen pre-migration copy of the migrated collections, PK `(migration_id, collection, doc_id)`, cascade from `migrations` |
 | `app_deps` | dependency log: `reader` app, `space`, `collection`, `mode` (`read`/`write`), first/last seen; PK `(space, collection, mode, reader)`; both slugs FK → `apps` on delete cascade |

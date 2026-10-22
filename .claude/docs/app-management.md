@@ -28,7 +28,8 @@ From SHC-0019 (2026-10-20). Endpoints are listed in `.claude/AGENTS.md`; this fi
 - Downloads go through `api/client.ts#download` (the token must be attached, so not a plain link); the file name
   comes from `Content-Disposition`. The HTML download is built client-side from `GET /api/apps/{slug}`, with
   `\ / : * ? " < > |` replaced by `-` (`lib/download.ts#safeFileName`).
-- GUI: host page "⋯ Manage" menu (everyone: the downloads; builders: Replace…, Archive/Restore, Delete…); Replace
+- GUI: host page "⋯ Manage" menu (everyone: the downloads; builders: Change with AI, Replace…, Data & history (`data-api.md`), Undo data change
+  (`data-migrations.md`), Archive/Restore, Delete…); Replace
   previews the file in `DraftFrame` first; archived cards in the list (under "Show archived") have Restore.
   Builders also see "Its data is used by …" under the bar when other apps used this app's data in the last 90 days
   (`GET /api/deps/{slug}`, own use filtered out, `pages/usedBy.ts`; SHC-0010). The Delete dialog does **not** warn

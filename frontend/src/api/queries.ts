@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { UIMessage } from 'ai'
 import { saveGuest } from '../auth/guestSession'
 import { api } from './client'
@@ -6,10 +6,14 @@ import type {
   AppDetail,
   AppSummary,
   AppUsage,
+  CollectionSummary,
   ConversationSummary,
   DeleteResult,
   DependencyView,
   DeployRequest,
+  DocHistory,
+  DocPage,
+  DocView,
   GuestLoginRequest,
   GuestToken,
   Me,
@@ -101,6 +105,61 @@ export function useDeps(slug: string, enabled: boolean) {
     queryKey: ['apps', slug, 'deps'],
     queryFn: () => api.get<DependencyView[]>(`/api/deps/${encodeURIComponent(slug)}`),
     enabled,
+  })
+}
+
+const dataKey = (slug: string) => ['apps', slug, 'data']
+
+/** The app's collections with how many documents each holds now and how many were removed (builders only). */
+export function useDataCollections(slug: string) {
+  return useQuery({
+    queryKey: dataKey(slug),
+    queryFn: () => api.get<CollectionSummary[]>(`/api/apps/${encodeURIComponent(slug)}/data`),
+  })
+}
+
+const PAGE = 50
+
+/** A collection's documents, page by page ("Load more"); `removed` lists the ones gone. */
+export function useDocuments(slug: string, collection: string | null, removed: boolean, prefix: string) {
+  return useInfiniteQuery({
+    queryKey: [...dataKey(slug), collection, removed, prefix],
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams({ removed: String(removed), offset: String(pageParam), limit: String(PAGE) })
+      if (prefix) params.set('prefix', prefix)
+      return api.get<DocPage>(
+        `/api/apps/${encodeURIComponent(slug)}/data/${encodeURIComponent(collection ?? '')}?${params}`,
+      )
+    },
+    initialPageParam: 0,
+    getNextPageParam: (last, pages) => (last.hasMore ? pages.length * PAGE : undefined),
+    enabled: collection !== null,
+  })
+}
+
+/** One document now and its earlier states. */
+export function useDocHistory(slug: string, collection: string | null, id: string | null) {
+  return useQuery({
+    queryKey: [...dataKey(slug), collection, 'history', id],
+    queryFn: () =>
+      api.get<DocHistory>(
+        `/api/apps/${encodeURIComponent(slug)}/data/${encodeURIComponent(collection ?? '')}/${encodeURIComponent(id ?? '')}/history`,
+      ),
+    enabled: collection !== null && id !== null,
+  })
+}
+
+/** Puts an earlier state back; refused (409) when the document changed since `expectedVersion`. */
+export function useRestoreVersion(slug: string, collection: string, id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ historyId, expectedVersion }: { historyId: number; expectedVersion: number }) =>
+      api.post<DocView>(
+        `/api/apps/${encodeURIComponent(slug)}/data/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/restore`,
+        { historyId, expectedVersion },
+      ),
+    // Also after a refusal: the page must show the document as it is now.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: dataKey(slug) }),
   })
 }
 

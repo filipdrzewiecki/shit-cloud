@@ -2,6 +2,19 @@
 
 What each closed ticket delivered, newest first. Durable details live in the files each entry points to.
 
+## SHC-0012 — History browsing & restore (closed 2026-10-22)
+
+- Builders open Manage → "Data & history" (`/apps/:slug/data`): collections with current and removed counts, records
+  newest change first (paged, id-prefix filter, "Removed records"), a record's earlier states with fields marked
+  against now, and "Restore this version" (inline confirm).
+- Restore is a new write: shared space lock, version guard (409 if changed since, the page reloads), the replaced
+  state goes to history as `restore` (`V6__restore_op.sql`); a removed record comes back at history's highest
+  version + 1. History rows are addressed by row id — Data API re-creates restart versions at 1.
+- Owner (question by question): own page, builders only, single records, restore with guard, raw JSON with marked
+  differences, no change feed, no hand editing. "Versions" = states of one stored record, not app HTML versions.
+- Tests written, not run by me; the owner's `mvn verify` and check on `test` are open.
+- Reference: `.claude/docs/data-api.md` ("Data & history page"), `.claude/AGENTS.md`.
+
 ## SHC-0011 — AI data migration (closed 2026-10-22)
 
 - The build chat converts a reworked app's stored documents: `propose_migration` with `function migrate(doc,
