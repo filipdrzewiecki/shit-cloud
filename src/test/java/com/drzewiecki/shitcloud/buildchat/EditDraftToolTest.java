@@ -27,7 +27,13 @@ class EditDraftToolTest {
     private static final String HTML = "<html><body><h1>Poll</h1><li>a</li><li>b</li></body></html>";
 
     private final EditDraftTool tool = new EditDraftTool(new Drafts(
-            new AppsProperties(Duration.ofDays(90), DataSize.ofBytes(200), false, 8081, "http://apps/{slug}/")),
+            new AppsProperties(Duration.ofDays(90), DataSize.ofBytes(200), false, 8081, "http://apps/{slug}/"),
+            new Uploads(null) {
+                @Override
+                public Optional<Upload> find(String conversationId) {
+                    return Optional.empty();
+                }
+            }),
             null);
 
     @Test

@@ -15,6 +15,10 @@ export interface ChatPanelProps {
   initialMessages?: UIMessage[]
   /** Change an existing app: sent when the conversation starts. */
   targetSlug?: string | null
+  /** The host's own fields sent with the first message only (e.g. an uploaded file). */
+  startBody?: Record<string, unknown>
+  /** Sent as the first message as soon as the panel opens empty; never for a conversation that has messages. */
+  autoSend?: string
   greeting?: string
   placeholder?: string
   /** A new draft arrived: show it in the preview. */
@@ -35,7 +39,7 @@ const QUIET_AFTER_SECONDS = 3
  * conversations — `useChat` keeps one conversation per instance.
  */
 export function ChatPanel(props: ChatPanelProps) {
-  const { endpoint, fetch, conversationId = null, initialMessages, targetSlug = null } = props
+  const { endpoint, fetch, conversationId = null, initialMessages, targetSlug = null, startBody } = props
   const conversation = useRef<string | null>(conversationId)
   // The SDK keeps the callbacks it was created with; these refs always point at the latest props.
   const onDraft = useRef(props.onDraft)
@@ -46,7 +50,7 @@ export function ChatPanel(props: ChatPanelProps) {
   onData.current = props.onData
 
   const [transport] = useState(() =>
-    serverTransport({ endpoint, fetch, conversationId: () => conversation.current, targetSlug }),
+    serverTransport({ endpoint, fetch, conversationId: () => conversation.current, targetSlug, startBody }),
   )
   const chat = useChat({
     id: conversationId ?? undefined,
@@ -65,6 +69,14 @@ export function ChatPanel(props: ChatPanelProps) {
       else onData.current?.(part as DataPartLike)
     },
   })
+
+  // Once per panel: a remount for another conversation gets a new key, StrictMode's second effect run does not send.
+  const autoSent = useRef(false)
+  useEffect(() => {
+    if (!props.autoSend || autoSent.current || conversation.current || chat.messages.length > 0) return
+    autoSent.current = true
+    void chat.sendMessage({ text: props.autoSend })
+  }, []) // on mount only
 
   const busy = chat.status === 'submitted' || chat.status === 'streaming'
   const quietFor = useQuietSeconds(busy, chat.messages)

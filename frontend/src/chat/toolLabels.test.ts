@@ -67,6 +67,14 @@ describe('toolLine', () => {
       .toBe('Could not check the change of the stored data: no data')
   })
 
+  it('describes the import tools by file and number of changes', () => {
+    const line = (type: string, output?: unknown) => toolLine({ type, state: 'output-available', output }).text
+    expect(toolLine({ type: 'tool-get_upload', state: 'input-available', input: {} }).text).toBe('Reading the uploaded file…')
+    expect(line('tool-get_upload', { fileName: 'planner.html', bytes: 84000 })).toBe('Read planner.html (82 KB)')
+    expect(line('tool-report_changes', { changes: 1 })).toBe('Listed 1 change')
+    expect(line('tool-report_changes', { changes: 4 })).toBe('Listed 4 changes')
+  })
+
   it('has a plain line for tools it does not know', () => {
     expect(toolLine({ type: 'tool-restore_doc', state: 'output-available' }).text).toBe('restore_doc: done')
   })

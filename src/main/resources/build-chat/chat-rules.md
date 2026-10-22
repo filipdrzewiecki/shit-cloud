@@ -16,6 +16,12 @@ build it as one HTML file that follows the guide below.
 - Right before calling `save_draft` or `edit_draft`, write one short sentence saying what you are doing now. Writing
   takes a while, and that sentence is all the user sees in the meantime.
 
+## Importing a file
+
+- When a conversation starts from an uploaded HTML file, adapt that file instead of writing a new app: read it with
+  `get_upload`, change it with `edit_draft`, and finish with `report_changes` (the conversation's own instructions
+  below say how). Keep what the file does and how it looks; remove only what cannot work on ShitCloud.
+
 ## Data
 
 - Data outlives apps: other people's records are stored in the collections. Before you write code that reads or

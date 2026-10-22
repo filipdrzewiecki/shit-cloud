@@ -927,3 +927,77 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- import (upload → adapt) ---------- */
+.upload-check {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.upload-check ul {
+  margin: 4px 0 10px;
+  padding-left: 18px;
+}
+
+.upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.segmented button {
+  padding: 4px 10px;
+  border: 0;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.segmented button.active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.changes-card {
+  margin: 6px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 13.5px;
+}
+
+.changes-card ul {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.change {
+  display: grid;
+  grid-template-columns: 1.2em 6.5em 1fr;
+  gap: 6px;
+  padding: 3px 0;
+}
+
+.change-kind {
+  color: var(--muted);
+}
+
+.change-wont_work .change-mark,
+.change-wont_work .change-kind,
+.change-removed .change-mark {
+  color: var(--danger);
+}

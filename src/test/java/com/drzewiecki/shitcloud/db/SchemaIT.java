@@ -25,7 +25,8 @@ class SchemaIT extends IntegrationTest {
                         where table_schema = current_schema() and table_type = 'BASE TABLE'""")
                 .query(String.class).list();
 
-        assertThat(tables).contains("apps", "app_versions", "docs", "doc_history", "migrations", "migration_docs");
+        assertThat(tables).contains("apps", "app_versions", "docs", "doc_history", "migrations", "migration_docs",
+                "chat_uploads");
     }
 
     @Test

@@ -2,6 +2,20 @@
 
 What each closed ticket delivered, newest first. Durable details live in the files each entry points to.
 
+## SHC-0013 — Import from disk with AI adaptation (closed 2026-10-22)
+
+- Upload page: an instant client-side check lists what the platform blocks (external scripts/styles/fonts/images,
+  network calls, browser storage, form posts, `<base>`); "Adapt with AI" (≤ 300 KB) or "Deploy as is".
+- Adapt starts an import conversation (`POST /api/chat` with `upload` on the first turn, `V7__chat_uploads.sql`): the
+  first draft is the file, the model reads it (`get_upload`), adapts it in place (`edit_draft`) and lists its changes
+  (`report_changes` → card). Build page: Before/After toggle, Deploy prefilled with the file name.
+- Owner (question by question): chat-based, structured change list, toggle instead of side by side, the AI rewrites
+  unhosted libraries, old localStorage data not carried over, 300 KB, quick check, Deploy as is kept.
+- Found and fixed: chat integration tests reset `chat_conversations` without `cascade`, which fails since tables
+  reference it (SHC-0011's `migrations` already broke them); incremental `test-compile` hid stale test errors.
+- Tests written, not run by me; the owner's `mvn verify` and check on `test` are open.
+- Reference: `.claude/docs/html-import.md`, `.claude/docs/chat-protocol.md`, `.claude/AGENTS.md`.
+
 ## SHC-0012 — History browsing & restore (closed 2026-10-22)
 
 - Builders open Manage → "Data & history" (`/apps/:slug/data`): collections with current and removed counts, records

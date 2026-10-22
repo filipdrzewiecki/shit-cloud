@@ -103,8 +103,11 @@ HTML with CDN libs + localStorage is imported and works.
 - [x] **SHC-0012 — History browsing & restore.** Builder panel: document history, restore. *Closed 2026-10-22:
   Manage → "Data & history" (`data-api.md`). **Still open:** the owner's `mvn verify` and check on `test` — e.g.
   change and remove a team-calendar entry, then restore both.*
-- [ ] **SHC-0013 — Import from disk with AI adaptation.** Agent rewrites CDN/fetch/localStorage,
-  change list, side-by-side before/after preview, size limit.
+- [x] **SHC-0013 — Import from disk with AI adaptation.** Agent rewrites CDN/fetch/localStorage,
+  change list, side-by-side before/after preview, size limit. *Closed 2026-10-22: in the build chat, change-list
+  card, Before/After toggle (owner: not side by side), 300 KB, old localStorage data not carried over
+  (`html-import.md`). **Still open:** the owner's `mvn verify` and check on `test` — upload a file with CDN
+  libraries and localStorage, adapt it, deploy, use it from two browsers (Phase 3's second "done" criterion).*
 
 ## Phase 5 — Later
 

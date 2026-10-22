@@ -31,7 +31,9 @@ public abstract class ChatIntegrationTest extends IntegrationTest {
 
     @BeforeEach
     void noConversations() {
-        jdbc.sql("truncate chat_conversations, chat_messages").update();
+        // cascade: other tables point at conversations (data changes, uploaded files), and Postgres refuses to
+        // truncate a referenced table on its own even when the referencing one is empty.
+        jdbc.sql("truncate chat_conversations, chat_messages cascade").update();
         model.reset();
     }
 

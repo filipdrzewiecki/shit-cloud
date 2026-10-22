@@ -21,4 +21,10 @@ describe('requestBody', () => {
     expect(requestBody(history.slice(0, 1), null, 'lunch-poll').targetSlug).toBe('lunch-poll')
     expect(requestBody(history, 'c_1', 'lunch-poll').targetSlug).toBeNull()
   })
+
+  it('adds the host\'s start fields (an uploaded file) only when the conversation starts', () => {
+    const upload = { upload: { fileName: 'a.html', html: '<html></html>' } }
+    expect(requestBody(history.slice(0, 1), null, null, upload)).toMatchObject(upload)
+    expect(requestBody(history, 'c_1', null, upload)).not.toHaveProperty('upload')
+  })
 })

@@ -160,6 +160,8 @@ title = first 60 characters. Verified on `test` 2026-10-20: a Polish lunch-poll 
 | `save_draft` | `html` (whole file) | `{saved, bytes}` | "Saved the app (6 KB)" + `data-draft` |
 | `edit_draft` | `edits: [{old_text, new_text}]` (1–50) | "Applied N edit(s); … B bytes" | "Edited the app (2 changes, 48 KB)" + `data-draft` |
 | `get_app` | `slug` | the source (≤ 300 KB) | "Read team-calendar" |
+| `get_upload` | — | the uploaded file of an import conversation (`html-import.md`) | "Read planner.html (82 KB)" |
+| `report_changes` | `changes: [{kind: replaced\|moved\|removed\|wont_work, what, why}]` (1–50) | `{changes}` | "Listed 4 changes" + `data-changes` card |
 | `list_spaces` | — | `[{space, name, description, collections: {name: count}}]`, non-archived apps | "Listed 7 apps and their data" |
 | `get_deps` | `space` | apps that used the space's data in 90 days, per collection, read/write, last used (`DependencyLog`) | "Checked who uses team-calendar's data (2 other apps)" |
 | `propose_migration` | `code` (`function migrate(doc, collection)`), `summary`, `collections?` | the whole check: counts, field changes, ≤ 3 before/after (cut like `sample_docs`), failures, readers, what to do next | "Checked a change of the stored data (412 documents)" + `data-migration` card |
@@ -223,6 +225,8 @@ for (;;) {
 - **SHC-0007**: done — see "Server implementation" above.
 - **SHC-0008**: done — see "Client implementation" below.
 - **SHC-0009**: done — see "ShitCloud's tools" above.
+- **SHC-0013**: done — import conversations: `TurnRequest.upload`, `get_upload`, `report_changes`, `Drafts`
+  falls back to the upload (`html-import.md`).
 - **SHC-0011**: done — `propose_migration` converts a reworked app's data in place, applied with Replace HTML
   (`data-migrations.md`). `chat.max-steps` went 5 → 8: a data change takes get_app, sample_docs, get_deps,
   edit_draft and propose_migration before the reply.
@@ -236,7 +240,8 @@ for (;;) {
   `@ai-sdk/react@4.0.150`, `react-markdown@10.1.0` (+89 KB gzip on the GUI bundle: 148 → 237 KB).
 - `ChatPanel` props: `endpoint`, `fetch` (the GUI passes `authorizedFetch` from `api/client.ts` — base URL, token,
   401 → sign-in, non-OK → `ApiError` with the server's message, because `DefaultChatTransport` would surface the raw
-  body), `conversationId`/`initialMessages` (continue), `targetSlug` (rework), `onDraft`, `onConversation`, `onData` (any other data part as it arrives) and `renderData`
+  body), `conversationId`/`initialMessages` (continue), `targetSlug` (rework), `onDraft`, `onConversation`, `startBody` (host fields sent with the first message only, e.g. an upload), `autoSend` (a first message sent
+  once when the panel opens empty), `onData` (any other data part as it arrives) and `renderData`
   (draws the host's own data parts in the conversation — must be stable; ShitCloud's `MigrationCard`).
 - `prepareSendMessagesRequest` → `{conversationId, message (text parts only), targetSlug (only when starting)}`.
 - One `useChat` per conversation: switching = a new `key`. The server naming a new conversation

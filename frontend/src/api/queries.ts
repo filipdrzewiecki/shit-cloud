@@ -20,6 +20,7 @@ import type {
   MigrationUndo,
   MigrationView,
   Platform,
+  Upload,
 } from './types'
 
 /** Shared with the app bridge, which answers an app's `me()` from the same cache. */
@@ -186,6 +187,16 @@ export function useConversation(id: string | null) {
     enabled: id !== null,
     staleTime: Infinity,
     gcTime: 0,
+  })
+}
+
+/** The original file of an import conversation, for its "Before" view; it never changes. */
+export function useUpload(conversationId: string | null, enabled: boolean) {
+  return useQuery({
+    queryKey: [...conversationsKey, conversationId, 'upload'],
+    queryFn: () => api.get<Upload>(`/api/chat/conversations/${conversationId}/upload`),
+    enabled: enabled && conversationId !== null,
+    staleTime: Infinity,
   })
 }
 

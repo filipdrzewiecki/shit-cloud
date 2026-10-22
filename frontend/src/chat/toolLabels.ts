@@ -81,6 +81,20 @@ function describe(name: string, part: ToolPartLike, phase: 'busy' | 'done' | 'fa
         ? `Checked a change of the stored data (${docs}, ${failed} failed)`
         : `Checked a change of the stored data (${docs})`
     }
+    case 'get_upload': {
+      if (phase === 'busy') return 'Reading the uploaded file…'
+      if (phase === 'failed') return 'Could not read the uploaded file'
+      const name = field(part.output, 'fileName')
+      const bytes = field(part.output, 'bytes')
+      const what = typeof name === 'string' ? name : 'the uploaded file'
+      return typeof bytes === 'number' ? `Read ${what} (${Math.max(1, Math.round(bytes / 1024))} KB)` : `Read ${what}`
+    }
+    case 'report_changes': {
+      if (phase === 'busy') return 'Listing the changes…'
+      if (phase === 'failed') return 'Could not list the changes'
+      const changes = field(part.output, 'changes')
+      return typeof changes === 'number' ? `Listed ${changes} ${changes === 1 ? 'change' : 'changes'}` : 'Listed the changes'
+    }
     case 'get_app': {
       const slug = field(part.input, 'slug')
       const app = typeof slug === 'string' ? slug : 'the app'

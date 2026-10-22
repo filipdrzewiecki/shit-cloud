@@ -69,7 +69,7 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
 - All tasks are in `.claude/docs`, one folder per ticket: `.claude/docs/SHC-{number}-{short-name}/`
 - Finished tickets are **closed** (ask first): knowledge compacted into project `.md` files, the ticket
   folder removed, a short entry added to `.claude/project-log.md` — see "Closing the ticket" in the SDLC flow
-- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `postgres.md`, `app-origin.md`, `data-api.md`, `app-management.md`, `chat-protocol.md`, `data-migrations.md`
+- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `postgres.md`, `app-origin.md`, `data-api.md`, `app-management.md`, `chat-protocol.md`, `data-migrations.md`, `html-import.md`
 - Ticket naming pattern: `SHC-{number}` (four digits, e.g. `SHC-0001`)
 
 ## MANDATORY — Ticket-based implementation rule
@@ -109,7 +109,9 @@ npm test --prefix frontend   # Vitest: app bridge + the injected SDK (no DOM, ha
 ```
 
 **Never run `mvn test` or `mvn verify` autonomously.** The user runs tests themselves. Review test
-code and report findings. Compiling (`mvn -q compile`) and typechecking the frontend is fine.
+code and report findings. Compiling and typechecking the frontend is fine — check tests with
+`mvn -q clean test-compile`: without `clean` the incremental build skips unchanged test files and hides their errors.
+Integration-test resets truncate with `cascade` (tables reference `apps` and `chat_conversations`).
 
 ## Project layout
 
@@ -126,7 +128,7 @@ src/main/java/com/drzewiecki/shitcloud/
                    DataParts (a tool reads the latest data part, e.g. the draft, via TurnContext.data())
   buildchat/       ShitCloud's chat: BuildChatController (/api/chat), BuildChatPrompt, tools SaveDraftTool,
                    EditDraftTool (exact-text edits), GetAppTool, ListSpacesTool, SampleDocsTool, GetDepsTool,
-                   ProposeMigrationTool;
+                   ProposeMigrationTool, GetUploadTool, ReportChangesTool; Uploads (chat_uploads)
                    Drafts (checks, base)
   data/            DataService (docs + doc_history, row locks), FilterTranslator (Mongo-style filter → SQL on JSONB),
                    DataProperties, records, DataException + DataExceptionHandler ({code, message} bodies),
@@ -146,7 +148,7 @@ src/main/java/com/drzewiecki/shitcloud/
 src/main/resources/
   application.properties, application-dev.properties
   db/migration/    Flyway SQL migrations (V1 apps, app_versions, docs, doc_history; V2 archive; V3 chat_conversations,
-                   chat_messages; V4 app_deps; V5 migrations, migration_docs; V6 history op restore)
+                   chat_messages; V4 app_deps; V5 migrations, migration_docs; V6 history op restore; V7 chat_uploads)
   build-chat/      chat-rules.md (system prompt preamble); builder-guide.md is copied in from frontend/src/guide by
                    the build (pom resources + Dockerfile) — one guide for /guide and the chat
   sample-apps/     seed HTML apps for the mockup
@@ -160,8 +162,8 @@ frontend/src/
                    drafts.ts, toolLabels.ts, Markdown (react-markdown), chat.css (own vars, GUI tokens as fallback)
   pages/           SignInPage, AppListPage, AppHostPage (+ AppManageMenu: "Change with AI", "Data & history"),
                    DataHistoryPage (/apps/:slug/data), BuildPage
-                   (conversations · ChatPanel · preview; ?c=<id> / ?app=<slug>), ReplaceBar, UploadPage, DeployBar,
-                   BuilderGuidePage
+                   (conversations · ChatPanel · preview; ?c=<id> / ?app=<slug>; import: Before/After), ReplaceBar,
+                   UploadPage (+ htmlScan, Adapt with AI), DeployBar, BuilderGuidePage
   guide/           builder-guide.md: the app rules written for an AI assistant (shown at /guide, copied by builders)
   shell/           Layout, AppFrame (deployed app: apps-origin src + allow-same-origin), appBridge.ts +
                    useAppBridge (answers the app's SDK calls; accepts only its own frame + the apps origin),
@@ -191,8 +193,9 @@ Every endpoint requires `Authorization: Bearer <token>` (Auth0 or guest) unless 
 | DELETE | `/api/apps/{slug}?confirm={slug}` | builder | Irreversible: app, versions, documents and history → `{documents, versions, history}`; wrong `confirm` → 400 |
 | GET  | `/api/apps/{slug}/usage` | signed in | `{documents, collections, versions}` (shown before deleting) |
 | GET  | `/api/apps/{slug}/export` | signed in | All the app's documents by collection → download `<slug>-data.json` (cap `data.max-export-documents`, 413 above) |
-| POST | `/api/chat` | builder | Build chat: `{conversationId?, message, targetSlug?}` → SSE, AI SDK UI message stream v1 (`chat-protocol.md`); 503 `CHAT_UNAVAILABLE` without `ANTHROPIC_API_KEY`, 400/404 `{code,message}` before the stream |
-| GET  | `/api/chat/conversations` · `/{id}` | builder | Caller's own conversations, newest first · one as `UIMessage[]` (someone else's → 404) |
+| POST | `/api/chat` | builder | Build chat: `{conversationId?, message, targetSlug?, upload?: {fileName, html}}` (upload: new conversation only, ≤ 300 KB, 413 above) → SSE, AI SDK UI message stream v1 (`chat-protocol.md`); 503 `CHAT_UNAVAILABLE` without `ANTHROPIC_API_KEY`, 400/404 `{code,message}` before the stream |
+| GET  | `/api/chat/conversations` · `/{id}` | builder | Caller's own conversations, newest first (`upload` = the imported file's name) · one as `UIMessage[]` (someone else's → 404) |
+| GET  | `/api/chat/conversations/{id}/upload` | builder | `{fileName, html}`: the file an import conversation started from (owner only) |
 | GET  | `/api/platform` | signed in | `{libraryBaseUrl}`: root of the apps origin, for draft previews' `<base href>` |
 | POST | `/api/data/{space}/{collection}/query` | signed in | `{filter?, sort?, limit?}` → `[DocView]`; Mongo-style filter, whitelisted operators only (translated to SQL on JSONB) |
 | PUT  | `/api/data/{space}/{collection}/{id}` | signed in | `{data, expectedVersion?}` → `DocView`; previous state → `doc_history`; last write wins unless `expectedVersion` (409 `VERSION_CONFLICT`) |

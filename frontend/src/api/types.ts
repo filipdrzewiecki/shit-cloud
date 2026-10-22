@@ -60,7 +60,15 @@ export interface ConversationSummary {
   id: string
   title: string
   targetSlug: string | null
+  /** The file an import conversation started from; null otherwise. */
+  upload: string | null
   updatedAt: string
+}
+
+/** The HTML file an import conversation started from, as uploaded. */
+export interface Upload {
+  fileName: string
+  html: string
 }
 
 export interface Platform {

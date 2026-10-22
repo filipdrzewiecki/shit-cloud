@@ -252,6 +252,80 @@ class BuildChatControllerIT extends ChatIntegrationTest {
     }
 
     @Test
+    void importedFile_isAdaptedInPlace_andTheChangesAreShownAsACard() throws Exception {
+        String original = "<!doctype html><html><head><script src=\"https://code.jquery.com/jquery.js\"></script></head>"
+                + "<body>Planner</body></html>";
+        model.script(
+                step(List.of(), call("c1", "get_upload", "{}")),
+                step(List.of(), call("c2", "edit_draft", edits(
+                        "<script src=\"https://code.jquery.com/jquery.js\"></script>", ""))),
+                step(List.of(), call("c3", "report_changes", json.writeValueAsString(Map.of("changes", List.of(
+                        Map.of("kind", "replaced", "what", "jQuery by plain JavaScript", "why", "no CDNs")))))),
+                answer("Adapted"));
+
+        List<Map<String, Object>> parts = chat(builder(), importTurn("Adapt planner.html to ShitCloud.",
+                "C:\\Users\\me\\planner.html", original));
+
+        assertThat(model.prompts().getFirst().getInstructions().getFirst().getText())
+                .contains("The user uploaded the HTML file `planner.html`");
+        assertThat(parts(parts, "tool-output-available")).extracting(part -> part.get("output")).containsExactly(
+                Map.of("fileName", "planner.html", "bytes", original.length()),
+                Map.of("edited", 1, "bytes", original.length() - "<script src=\"https://code.jquery.com/jquery.js\"></script>".length()),
+                Map.of("changes", 1));
+        // The model read the file; the first edit applied to it.
+        List<Message> second = model.prompts().get(1).getInstructions();
+        assertThat(((ToolResponseMessage) second.getLast()).getResponses().getFirst().responseData())
+                .isEqualTo("Uploaded file planner.html:\n\n" + original);
+        assertThat(drafts(parts)).singleElement().satisfies(draft -> assertThat(draft)
+                .isEqualTo(nullTarget("<!doctype html><html><head></head><body>Planner</body></html>")));
+        assertThat(parts(parts, "data-changes")).singleElement().satisfies(part -> assertThat(part.get("data"))
+                .isEqualTo(Map.of("changes", List.of(
+                        Map.of("kind", "replaced", "what", "jQuery by plain JavaScript", "why", "no CDNs")))));
+
+        String id = jdbc.sql("select id from chat_conversations").query(String.class).single();
+        mvc.perform(get("/api/chat/conversations").with(builder()))
+                .andExpect(jsonPath("$[0].title").value("Import planner.html"))
+                .andExpect(jsonPath("$[0].upload").value("planner.html"))
+                .andExpect(jsonPath("$[0].targetSlug").isEmpty());
+        mvc.perform(get("/api/chat/conversations/{id}/upload", id).with(builder()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fileName").value("planner.html"))
+                .andExpect(jsonPath("$.html").value(original));
+        mvc.perform(get("/api/chat/conversations/{id}/upload", id).with(idpUser("other@example.com", "Other", "ShitCloud Builder")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void uploads_areRefusedBeforeTheStream_whenTheyCannotStartAnImport() throws Exception {
+        registry.deploy(new DeployRequest("Lunch Poll", null, APP_HTML), BUILDER_EMAIL);
+        Map<String, Object> withApp = new java.util.HashMap<>(json.readValue(importTurn("Adapt", "a.html", APP_HTML), Map.class));
+        withApp.put("targetSlug", "lunch-poll");
+        mvc.perform(post("/api/chat").with(builder()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(withApp)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+        mvc.perform(post("/api/chat").with(builder()).contentType(MediaType.APPLICATION_JSON)
+                        .content(importTurn("Adapt", "a.html", "just text")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/chat").with(builder()).contentType(MediaType.APPLICATION_JSON)
+                        .content(importTurn("Adapt", "big.html", "<html>" + "x".repeat(300 * 1024) + "</html>")))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.code").value("TOO_LARGE"));
+
+        model.script(answer("Hi"));
+        chat(builder(), turn(null, "Hi", null));
+        String id = jdbc.sql("select id from chat_conversations").query(String.class).single();
+        Map<String, Object> continued = new java.util.HashMap<>(json.readValue(importTurn("Adapt", "a.html", APP_HTML), Map.class));
+        continued.put("conversationId", id);
+        mvc.perform(post("/api/chat").with(builder()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(continued)))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/chat/conversations/{id}/upload", id).with(builder()))
+                .andExpect(status().isNotFound());
+        assertThat(jdbc.sql("select count(*) from chat_uploads").query(Long.class).single()).isZero();
+    }
+
+    @Test
     void conversations_belongToTheirBuilder() throws Exception {
         model.script(answer("Mine"));
         List<Map<String, Object>> parts = chat(builder(), turn(null, "Mine", null));
@@ -295,6 +369,12 @@ class BuildChatControllerIT extends ChatIntegrationTest {
         body.put("conversationId", conversationId);
         body.put("message", Map.of("id", "u1", "role", "user", "parts", List.of(Map.of("type", "text", "text", text))));
         body.put("targetSlug", targetSlug);
+        return json.writeValueAsString(body);
+    }
+
+    private String importTurn(String text, String fileName, String html) {
+        Map<String, Object> body = new java.util.HashMap<>(json.readValue(turn(null, text, null), Map.class));
+        body.put("upload", Map.of("fileName", fileName, "html", html));
         return json.writeValueAsString(body);
     }
 

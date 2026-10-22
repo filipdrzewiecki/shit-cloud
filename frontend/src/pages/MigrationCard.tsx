@@ -1,6 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { RenderData } from '../chat'
-import { fieldLines, migrationOf, type MigrationProposal } from './migration'
+import { fieldLines, type MigrationProposal } from './migration'
 
 /** The id of the newest proposal in the open conversation; older cards say they were replaced. */
 export const LatestMigration = createContext<number | null>(null)
@@ -80,10 +79,4 @@ export function MigrationCard({ migration }: { migration: MigrationProposal }) {
       )}
     </div>
   )
-}
-
-/** For the chat panel: draws `data-migration` parts. Module level, so it never changes. */
-export const renderMigration: RenderData = (part) => {
-  const migration = migrationOf(part)
-  return migration ? <MigrationCard migration={migration} /> : null
 }

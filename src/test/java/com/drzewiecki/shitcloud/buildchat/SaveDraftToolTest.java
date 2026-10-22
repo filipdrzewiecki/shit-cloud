@@ -11,6 +11,7 @@ import org.springframework.util.unit.DataSize;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -18,7 +19,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SaveDraftToolTest {
 
     private final SaveDraftTool tool = new SaveDraftTool(new Drafts(
-            new AppsProperties(Duration.ofDays(90), DataSize.ofBytes(100), false, 8081, "http://apps/{slug}/")));
+            new AppsProperties(Duration.ofDays(90), DataSize.ofBytes(100), false, 8081, "http://apps/{slug}/"),
+            new Uploads(null) {
+                @Override
+                public Optional<Upload> find(String conversationId) {
+                    return Optional.empty();
+                }
+            }));
 
     private final TurnContext rework = new TurnContext("b@example.com",
             new Conversation("c_1", "b@example.com", "T", "lunch-poll", Instant.now(), Instant.now()));

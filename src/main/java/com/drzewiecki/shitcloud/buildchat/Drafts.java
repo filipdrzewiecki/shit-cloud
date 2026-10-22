@@ -13,7 +13,8 @@ import java.util.Optional;
 
 /**
  * The draft in the preview ({@code data-draft}, fixed id {@code draft}): what {@code save_draft} and
- * {@code edit_draft} produce and check, and where an edit finds the file it changes.
+ * {@code edit_draft} produce and check, and where an edit finds the file it changes: the latest draft, else the file
+ * an import conversation started from.
  */
 @Component
 public class Drafts {
@@ -21,20 +22,24 @@ public class Drafts {
     static final String NAME = "draft";
 
     private final AppsProperties apps;
+    private final Uploads uploads;
 
-    public Drafts(AppsProperties apps) {
+    public Drafts(AppsProperties apps, Uploads uploads) {
         this.apps = apps;
+        this.uploads = uploads;
     }
 
     /**
-     * The conversation's latest draft, also one produced earlier in the answer in progress.
+     * The conversation's latest draft, also one produced earlier in the answer in progress; before the first draft of
+     * an import conversation, the uploaded file.
      */
     Optional<String> latest(TurnContext context) {
         return context.data().latest(NAME, NAME)
                 .filter(Map.class::isInstance)
                 .map(data -> ((Map<?, ?>) data).get("html"))
                 .filter(String.class::isInstance)
-                .map(String.class::cast);
+                .map(String.class::cast)
+                .or(() -> uploads.find(context.conversation().id()).map(Uploads.Upload::html));
     }
 
     /**
