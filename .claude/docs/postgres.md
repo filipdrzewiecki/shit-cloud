@@ -11,7 +11,9 @@ syntax was kept on purpose.)
 | `apps` | slug (PK), name, description, current `html`, `owner` (creator), `version`, `last_used_at`, `archived` + `archived_at`/`archived_by`, created/updated, `updated_by` |
 | `app_versions` | every deploy: `app_slug` → `apps`, `version` (unique per app), html, `author`, `created_at` |
 | `docs` | app data: `space` (= app slug, FK → `apps`), `collection`, `doc_id` (unique per space+collection), `data jsonb`, `version`, created/updated by/at |
-| `doc_history` | earlier states: same identity + `version`, `op` (`update`/`delete`), previous `data`, previous `updated_by/at`, `changed_by/at` — no FK, outlives a deleted app |
+| `doc_history` | earlier states: same identity + `version`, `op` (`update`/`delete`/`migrate`/`undo`), previous `data`, previous `updated_by/at`, `changed_by/at` — no FK, outlives a deleted app |
+| `migrations` | data changes by the build chat: `space` → `apps` (cascade), `collections text[]`, `code`, `summary`, `status` (`proposed`/`applied`/`undone`), `checked`/`result` counts (jsonb), html versions before/after, by/at, `copy_until` (`data-migrations.md`) |
+| `migration_docs` | the frozen pre-migration copy of the migrated collections, PK `(migration_id, collection, doc_id)`, cascade from `migrations` |
 | `app_deps` | dependency log: `reader` app, `space`, `collection`, `mode` (`read`/`write`), first/last seen; PK `(space, collection, mode, reader)`; both slugs FK → `apps` on delete cascade |
 | `flyway_schema_history` | Flyway's own bookkeeping |
 
@@ -19,7 +21,8 @@ syntax was kept on purpose.)
   startup. Never edit an applied migration — add the next one.
 - Access only through Spring **`JdbcClient`** with hand-written SQL (no JPA). Timestamps are `timestamptz`; the
   driver speaks `OffsetDateTime`, so `db/Timestamps` converts to/from `Instant`.
-- Retention: `apps.version-ttl` / `data.history-ttl` / `data.deps-ttl` (90 days), enforced by `db/ExpiryJob` at 03:30 every night
+- Retention: `apps.version-ttl` / `data.history-ttl` / `data.deps-ttl` (90 days), migration copies (`copy_until`,
+  30 days) and unapplied proposals (`migration.proposal-ttl`), enforced by `db/ExpiryJob` at 03:30 every night
   (`db.expiry-cron`). Postgres has no TTL indexes. One API instance — a lock is needed if it is ever scaled out.
 
 ## Writes
@@ -29,6 +32,9 @@ syntax was kept on purpose.)
 - **Data `set` / `remove`**: `SELECT … FOR UPDATE` on the document, history row, then update/delete — one
   transaction. Concurrent writers to one document wait, never fail; each replaced state gets exactly one history
   row. An insert race is `ON CONFLICT DO NOTHING` + re-lock. No retry loop (MongoDB needed one).
+- **Space lock**: every data write first takes `pg_advisory_xact_lock_shared(0x5CDA7A, hashtext(space))`; a data
+  migration (apply/undo) takes it exclusively, so writes to that app wait while its data is rewritten
+  (`data-migrations.md`).
 - `db.add` ids: 24 hex = 8 hex epoch seconds + 16 random hex (same shape/order as Mongo ObjectIds; the builder
   guide promises it).
 
@@ -65,7 +71,7 @@ syntax was kept on purpose.)
   select doc_id, data, version, updated_by from docs where space = 'team-calendar' and collection = 'marks';
   select doc_id, version, op, data, changed_by, changed_at from doc_history where space = 'lunch-poll' order by id;
   ```
-- No backups yet (SHC-0017).
+- No backups yet (parked under Phase 5 in the roadmap).
 - The previous `Mongo Single Replica` service (and `MONGODB_URI` on `api`) is unused since SHC-0018 and waits for the
   owner's go to be deleted.
 

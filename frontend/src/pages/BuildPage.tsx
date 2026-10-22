@@ -7,6 +7,8 @@ import { ChatPanel, lastDraft, type Draft } from '../chat'
 import { timeAgo } from '../lib/time'
 import { DraftFrame } from '../shell/DraftFrame'
 import { DeployBar } from './DeployBar'
+import { LatestMigration, renderMigration } from './MigrationCard'
+import { lastMigration, migrationOf, type MigrationProposal } from './migration'
 import { ReplaceBar } from './ReplaceBar'
 
 /**
@@ -34,6 +36,7 @@ export function BuildPage() {
   const [params, setParams] = useSearchParams()
   const [session, setSession] = useState(() => sessionFrom(params))
   const [draft, setDraft] = useState<Draft | null>(null)
+  const [migration, setMigration] = useState<MigrationProposal | null>(null)
   const queryClient = useQueryClient()
   const conversations = useConversations()
   const saved = useConversation(session.conversationId)
@@ -48,12 +51,16 @@ export function BuildPage() {
     if (!open && !sameNew) {
       setSession(sessionFrom(params))
       setDraft(null)
+      setMigration(null)
     }
   }, [params]) // the URL alone decides; the session it compares with is the one rendered with it
 
-  // An opened conversation shows its last draft.
+  // An opened conversation shows its last draft, and Replace offers its last data change.
   useEffect(() => {
-    if (saved.data) setDraft(lastDraft(saved.data))
+    if (saved.data) {
+      setDraft(lastDraft(saved.data))
+      setMigration(lastMigration(saved.data))
+    }
   }, [saved.data])
 
   const summary = conversations.data?.find((c) => c.id === (session.conversationId ?? session.adoptedId))
@@ -90,26 +97,33 @@ export function BuildPage() {
         {session.conversationId && !saved.data ? (
           <div className="empty">{saved.isError ? saved.error.message : 'Loading the conversation…'}</div>
         ) : (
-          <ChatPanel
-            key={session.key}
-            endpoint="/api/chat"
-            fetch={authorizedFetch}
-            conversationId={session.conversationId}
-            initialMessages={saved.data}
-            targetSlug={session.targetSlug}
-            greeting={
-              session.targetSlug
-                ? `What should change in “${reworkApp?.name ?? session.targetSlug}”? I'll read the app first.`
-                : 'Hi! Describe the app you need — e.g. "a team calendar where everyone marks office days and days off".'
-            }
-            placeholder="Describe the app or ask for a change…"
-            onDraft={setDraft}
-            onConversation={({ id }) => {
-              setSession((s) => ({ ...s, adoptedId: id }))
-              setParams(new URLSearchParams({ c: id }), { replace: true })
-              void queryClient.invalidateQueries({ queryKey: conversationsKey, exact: true })
-            }}
-          />
+          <LatestMigration.Provider value={migration?.id ?? null}>
+            <ChatPanel
+              key={session.key}
+              endpoint="/api/chat"
+              fetch={authorizedFetch}
+              conversationId={session.conversationId}
+              initialMessages={saved.data}
+              targetSlug={session.targetSlug}
+              greeting={
+                session.targetSlug
+                  ? `What should change in “${reworkApp?.name ?? session.targetSlug}”? I'll read the app first.`
+                  : 'Hi! Describe the app you need — e.g. "a team calendar where everyone marks office days and days off".'
+              }
+              placeholder="Describe the app or ask for a change…"
+              onDraft={setDraft}
+              onData={(part) => {
+                const proposal = migrationOf(part)
+                if (proposal) setMigration(proposal)
+              }}
+              renderData={renderMigration}
+              onConversation={({ id }) => {
+                setSession((s) => ({ ...s, adoptedId: id }))
+                setParams(new URLSearchParams({ c: id }), { replace: true })
+                void queryClient.invalidateQueries({ queryKey: conversationsKey, exact: true })
+              }}
+            />
+          </LatestMigration.Provider>
         )}
       </div>
 
@@ -117,7 +131,12 @@ export function BuildPage() {
         <div className="preview-head">
           <strong>Preview</strong>
           {reworkSlug ? (
-            <ReplaceBar slug={reworkSlug} name={reworkApp?.name ?? reworkSlug} html={draft?.html ?? null} />
+            <ReplaceBar
+              slug={reworkSlug}
+              name={reworkApp?.name ?? reworkSlug}
+              html={draft?.html ?? null}
+              migration={migration?.space === reworkSlug ? migration : null}
+            />
           ) : (
             <DeployBar html={draft?.html ?? null} />
           )}

@@ -21,8 +21,14 @@ build it as one HTML file that follows the guide below.
 - Data outlives apps: other people's records are stored in the collections. Before you write code that reads or
   writes an existing app's data, look at it: `list_spaces` shows the apps and their collections, `sample_docs` a few
   real documents. Keep the collection names and document shapes you find.
-- If the user's request needs a different shape (a renamed field, a new structure), say so plainly in your reply
-  and name what existing documents will lack; never change a shape silently.
+- If the user's request needs a different shape (a renamed field, a new structure), say so plainly in your reply;
+  never change a shape silently.
+- When you change an existing app and its stored documents must get the new shape, convert them: first make the
+  draft read and write the new shape, then call `propose_migration` with `function migrate(doc, collection)`. It
+  checks every document and writes nothing; the user applies it together with the draft. Keep every piece of
+  information unless the user asked to drop it, keep the code deterministic, and when documents fail, fix the code
+  and propose again. Explain the result in a few lines (what changes, how many documents, any removed). Never ask
+  the user to convert data by hand. Only the app being changed can be converted.
 - Before changing or removing a field, a collection or the shape of an app's documents, call `get_deps` for that
   app's space and name in your reply the other apps that read what you change and will likely break. It informs; go
   ahead with what the user asked for.

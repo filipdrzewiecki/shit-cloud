@@ -12,6 +12,11 @@ public class DataException extends RuntimeException {
     public static final String VERSION_CONFLICT = "VERSION_CONFLICT";
     public static final String CONFLICT = "CONFLICT";
     public static final String TOO_LARGE = "TOO_LARGE";
+    /** A data migration failed on the documents as they are now; nothing was changed. */
+    public static final String MIGRATION_FAILED = "MIGRATION_FAILED";
+    /** The migration is not (or no longer) the one that can be applied or undone. */
+    public static final String MIGRATION_STALE = "MIGRATION_STALE";
+    public static final String NO_SUCH_MIGRATION = "NO_SUCH_MIGRATION";
 
     private final HttpStatus status;
     private final String code;

@@ -13,7 +13,7 @@ From SHC-0019 (2026-10-20). Endpoints are listed in `.claude/AGENTS.md`; this fi
 ## Rules
 - Archive: `apps.archived` + `archived_at`/`archived_by` (Flyway V2). Opening an app moves `last_used_at` but **never
   un-archives** it; a deploy **by name** does (an explicit "make it live"). The Data API and the app document keep
-  working for archived apps. The automatic 30-day archiving (SHC-0014) will need Restore too.
+  working for archived apps. Automatic 30-day archiving, if it comes back, will need Restore too.
 - Replace HTML is its own endpoint (`PUT /api/apps/{slug}/html`): a typo can never create a new app. Name,
   description, archive state and data stay; the version goes up.
 - Delete needs `?confirm=<slug>` (a stray DELETE wipes nothing) and, in the GUI, the app's **name** typed after the

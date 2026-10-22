@@ -55,7 +55,19 @@ describe('toolLine', () => {
       .toBe("Checked who uses team-calendar's data (no other apps)")
   })
 
+  it('describes propose_migration by the documents it checked', () => {
+    expect(toolLine({ type: 'tool-propose_migration', state: 'input-available', input: { code: 'function migrate…' } }))
+      .toEqual({ text: 'Checking a change of the stored data…', state: 'busy' })
+    const done = (output: unknown) => toolLine({ type: 'tool-propose_migration', state: 'output-available', output }).text
+    expect(done({ migration: 7, documents: 412, changed: 412, removed: 0, failed: 0 }))
+      .toBe('Checked a change of the stored data (412 documents)')
+    expect(done({ migration: 7, documents: 1, changed: 0, removed: 0, failed: 1 }))
+      .toBe('Checked a change of the stored data (1 document, 1 failed)')
+    expect(toolLine({ type: 'tool-propose_migration', state: 'output-error', errorText: 'no data' }).text)
+      .toBe('Could not check the change of the stored data: no data')
+  })
+
   it('has a plain line for tools it does not know', () => {
-    expect(toolLine({ type: 'tool-propose_migration', state: 'output-available' }).text).toBe('propose_migration: done')
+    expect(toolLine({ type: 'tool-restore_doc', state: 'output-available' }).text).toBe('restore_doc: done')
   })
 })

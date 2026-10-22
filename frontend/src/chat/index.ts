@@ -3,3 +3,4 @@
 export { ChatPanel, type ChatPanelProps } from './ChatPanel'
 export { lastDraft, type Draft } from './drafts'
 export type { ChatFetch } from './serverChat'
+export type { DataPartLike, RenderData } from './parts'

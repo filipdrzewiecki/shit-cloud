@@ -91,28 +91,24 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
 **Done when:** the calendar is rewritten to a new data format without losing records, and an external
 HTML with CDN libs + localStorage is imported and works.
 
-- [~] **SHC-0010 — Dependency log + cross-space reads.** `_deps` upserts, `shitcloud.db.space()`
-  read-only, `get_deps` tool, warnings in chat.
-- [ ] **SHC-0011 — AI data migration.** `propose_migration`, GraalJS sandbox (no I/O), counts +
-  before/after samples, human approval, old space read-only 30 days, `_migrations` audit.
+- [x] **SHC-0010 — Dependency log + cross-space reads.** `_deps` upserts, `shitcloud.db.space()`
+  read-only, `get_deps` tool, warnings in chat. *Closed on the owner's order (2026-10-21), live with `978aa3d`;
+  **still open:** the owner's check on `test` — e.g. build an app over team-calendar's data in the chat, open it,
+  then see "Its data is used by …" on team-calendar's page and a `get_deps` warning when changing its data shape.*
+- [x] **SHC-0011 — AI data migration.** `propose_migration`, GraalJS sandbox (no I/O), counts +
+  before/after samples, human approval, old space read-only 30 days, `_migrations` audit. *Closed 2026-10-22: in
+  place (not a new space), applied with Replace HTML, 30-day copy + undo (`data-migrations.md`). **Still open:** the
+  owner's `mvn verify` and check on `test` — e.g. have the chat change how team-calendar stores its days, replace,
+  confirm no records are lost, then undo.*
 - [ ] **SHC-0012 — History browsing & restore.** Builder panel: document history, restore.
 - [ ] **SHC-0013 — Import from disk with AI adaptation.** Agent rewrites CDN/fetch/localStorage,
   change list, side-by-side before/after preview, size limit.
 
-## Phase 4 — Polish & pilot
-
-**Done when:** the pilot team built at least one app nobody asked them to build.
-
-- [ ] **SHC-0014 — App lifecycle.** 30-day automatic archiving (manual archive/restore/delete came with SHC-0019;
-  since then opening an archived app no longer restores it — auto-archived apps need Restore too, or a separate
-  "auto" state decided here).
-- [ ] **SHC-0015 — Token limits.** Daily limit per builder, usage counters, admin view.
-- [ ] **SHC-0016 — ZIP upload + full library mirror.**
-- [ ] **SHC-0017 — Backups & pilot readiness.** `mongodump` to a bucket, one tested restore, vendor
-  approval checklist, two-week pilot.
-
 ## Phase 5 — Later
 
+- Polish & pilot (Phase 4, removed for now on 2026-10-22; its tickets SHC-0014–0017 are dropped): 30-day
+  automatic archiving, token limits per builder, ZIP upload + full library mirror, backups with a tested restore,
+  vendor approval checklist, two-week pilot
 - RAG over documents (Mongo `mongot`, 8.2+)
 - On-prem move: ADFS / Entra ID OIDC, company Mongo, wildcard DNS + TLS
 
@@ -126,6 +122,6 @@ HTML with CDN libs + localStorage is imported and works.
 | AD flavour (ADFS vs Entra ID) | Phase 5 — roles claim kept configurable (`.claude/docs/auth.md`) |
 | Does the company run MongoDB on-prem? | Phase 5 |
 | React chat library + streaming protocol | SHC-0006 — `useChat` + own components, AI SDK UI message stream v1 (`chat-protocol.md`) |
-| Library mirror contents | SHC-0003 (minimal: Alpine, Tailwind browser, Chart.js — done), SHC-0016 (full) |
+| Library mirror contents | SHC-0003 (minimal: Alpine, Tailwind browser, Chart.js — done); the full mirror is parked under Phase 5 |
 | Neutral identifiers (package, domains, env vars) | Open — ticket prefix `SHC` chosen |
 | LLM vendor key and approval | `test`: the owner's own Anthropic API key (added to Railway by the owner when SHC-0007 needs it); no company data goes into prompts. Company approval is still needed before a pilot with real data |

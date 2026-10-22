@@ -55,7 +55,7 @@ export function ReplaceHtmlDialog({ app, onClose }: { app: AppSummary; onClose: 
           type="button"
           className="button primary"
           disabled={!html || replace.isPending}
-          onClick={() => html && replace.mutate(html, { onSuccess: onClose })}
+          onClick={() => html && replace.mutate({ html }, { onSuccess: onClose })}
         >
           {replace.isPending ? 'Replacing…' : `Replace with version ${app.version + 1}`}
         </button>

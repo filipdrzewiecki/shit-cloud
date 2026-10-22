@@ -93,11 +93,19 @@ public class SampleDocsTool implements ChatTool {
     String cut(DocView doc) {
         Map<String, Object> flat = new LinkedHashMap<>();
         flat.put("id", doc.id());
-        doc.data().forEach((key, value) -> flat.put(key, shorten(value)));
+        flat.putAll(doc.data());
         flat.put("_version", doc.version());
         flat.put("_updatedBy", doc.updatedBy());
         flat.put("_updatedAt", doc.updatedAt().toString());
-        String text = json.writeValueAsString(flat);
+        return cut(flat, json);
+    }
+
+    /**
+     * A document as JSON for the model: strings over {@value #MAX_STRING_CHARS} characters shortened, and the whole
+     * cut at {@value #MAX_DOC_BYTES} bytes.
+     */
+    static String cut(Map<String, Object> document, JsonMapper json) {
+        String text = json.writeValueAsString(shorten(document));
         byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
         if (bytes.length <= MAX_DOC_BYTES) {
             return text;
@@ -105,7 +113,7 @@ public class SampleDocsTool implements ChatTool {
         return new String(bytes, 0, MAX_DOC_BYTES, StandardCharsets.UTF_8) + " …(cut, " + bytes.length + " bytes)";
     }
 
-    private static Object shorten(Object value) {
+    static Object shorten(Object value) {
         return switch (value) {
             case String text when text.length() > MAX_STRING_CHARS ->
                     text.substring(0, MAX_STRING_CHARS) + "…(" + text.length() + " chars)";

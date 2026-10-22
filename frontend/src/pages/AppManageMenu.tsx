@@ -1,24 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import { useArchive, useRestore } from '../api/queries'
+import { useArchive, useMigrations, useRestore } from '../api/queries'
 import type { AppDetail } from '../api/types'
 import { safeFileName, saveFile } from '../lib/download'
 import { DeleteAppDialog } from './DeleteAppDialog'
 import { ReplaceHtmlDialog } from './ReplaceHtmlDialog'
+import { UndoMigrationDialog } from './UndoMigrationDialog'
 
 /**
  * "⋯ Manage" on the host page. Everyone can download the app and its data (they
  * can read all of it through the app anyway); builders also change it with the
- * build chat, replace, archive, restore and delete it.
+ * build chat, replace, archive, restore and delete it, and undo the chat's latest data change while its copy is
+ * kept.
  */
 export function AppManageMenu({ detail, builder }: { detail: AppDetail; builder: boolean }) {
   const { app } = detail
   const [open, setOpen] = useState(false)
-  const [dialog, setDialog] = useState<'replace' | 'delete' | null>(null)
+  const [dialog, setDialog] = useState<'replace' | 'delete' | 'undo' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const archive = useArchive(app.slug)
   const restore = useRestore(app.slug)
+  const migrations = useMigrations(app.slug, builder)
+  const undoable = migrations.data?.find((m) => m.undoable) ?? null
   const menu = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
 
@@ -50,6 +54,15 @@ export function AppManageMenu({ detail, builder }: { detail: AppDetail; builder:
     }
   }
 
+  const downloadCopy = async (id: number) => {
+    try {
+      const { blob, fileName } = await api.download(`/api/migrations/${id}/copy`)
+      saveFile(blob, fileName ?? `${app.slug}-before-change-${id}.json`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not download the data')
+    }
+  }
+
   return (
     <div className="manage" ref={menu}>
       {(error || archive.error || restore.error) && (
@@ -75,6 +88,16 @@ export function AppManageMenu({ detail, builder }: { detail: AppDetail; builder:
               <button type="button" role="menuitem" onClick={run(() => setDialog('replace'))}>
                 ⇪ Replace HTML…
               </button>
+              {undoable && (
+                <>
+                  <button type="button" role="menuitem" onClick={run(() => setDialog('undo'))}>
+                    ↶ Undo data change…
+                  </button>
+                  <button type="button" role="menuitem" onClick={run(() => void downloadCopy(undoable.id))}>
+                    ⬇ Data before the change
+                  </button>
+                </>
+              )}
               {app.archived ? (
                 <button type="button" role="menuitem" onClick={run(() => restore.mutate())}>
                   ↺ Restore
@@ -92,6 +115,14 @@ export function AppManageMenu({ detail, builder }: { detail: AppDetail; builder:
         </div>
       )}
       {dialog === 'replace' && <ReplaceHtmlDialog app={app} onClose={() => setDialog(null)} />}
+      {dialog === 'undo' && undoable && (
+        <UndoMigrationDialog
+          app={app}
+          migration={undoable}
+          onDownloadCopy={() => void downloadCopy(undoable.id)}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog === 'delete' && (
         <DeleteAppDialog app={app} onDownloadData={() => void downloadData()} onClose={() => setDialog(null)} />
       )}

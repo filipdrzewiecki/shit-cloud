@@ -2,6 +2,7 @@ package com.drzewiecki.shitcloud.controller;
 
 import com.drzewiecki.shitcloud.data.DataService;
 import com.drzewiecki.shitcloud.data.ExportView;
+import com.drzewiecki.shitcloud.migration.MigrationService;
 import com.drzewiecki.shitcloud.model.AppDetail;
 import com.drzewiecki.shitcloud.model.AppSummary;
 import com.drzewiecki.shitcloud.model.AppUsage;
@@ -39,10 +40,12 @@ public class AppController {
 
     private final AppRegistry appRegistry;
     private final DataService dataService;
+    private final MigrationService migrations;
 
-    public AppController(AppRegistry appRegistry, DataService dataService) {
+    public AppController(AppRegistry appRegistry, DataService dataService, MigrationService migrations) {
         this.appRegistry = appRegistry;
         this.dataService = dataService;
+        this.migrations = migrations;
     }
 
     @GetMapping
@@ -77,7 +80,9 @@ public class AppController {
     @PutMapping("/{slug}/html")
     @PreAuthorize("hasRole('BUILDER')")
     public AppSummary replaceHtml(@PathVariable String slug, @RequestBody ReplaceHtmlRequest request) {
-        return appRegistry.replaceHtml(slug, request.html(), caller());
+        return request.migrationId() == null
+                ? appRegistry.replaceHtml(slug, request.html(), caller())
+                : migrations.applyWithHtml(slug, request.migrationId(), request.html(), caller());
     }
 
     /** Irreversible: the app, its versions, documents and history. {@code confirm} must repeat the slug. */

@@ -24,6 +24,7 @@ import java.text.Normalizer;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
@@ -96,6 +97,20 @@ public class AppRegistry {
 
     public boolean exists(String slug) {
         return jdbc.sql("select exists (select 1 from apps where slug = ?)").param(slug).query(Boolean.class).single();
+    }
+
+    /** The app's current version number. */
+    public int version(String slug) {
+        return jdbc.sql("select version from apps where slug = ?").param(slug).query(Integer.class).optional()
+                .orElseThrow(() -> noApp(slug));
+    }
+
+    /** The HTML of an earlier version, while {@code app_versions} still keeps it. */
+    public Optional<String> html(String slug, int version) {
+        return jdbc.sql("select html from app_versions where app_slug = ? and version = ?")
+                .params(slug, version)
+                .query(String.class)
+                .optional();
     }
 
     /**

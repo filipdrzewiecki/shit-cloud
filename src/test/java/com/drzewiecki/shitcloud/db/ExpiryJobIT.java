@@ -4,6 +4,7 @@ import com.drzewiecki.shitcloud.IntegrationTest;
 import com.drzewiecki.shitcloud.data.DataService;
 import com.drzewiecki.shitcloud.data.DataWrite;
 import com.drzewiecki.shitcloud.data.DependencyLog;
+import com.drzewiecki.shitcloud.migration.MigrationService;
 import com.drzewiecki.shitcloud.model.DeployRequest;
 import com.drzewiecki.shitcloud.service.AppRegistry;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,9 @@ class ExpiryJobIT extends IntegrationTest {
 
     @Autowired
     private DependencyLog dependencies;
+
+    @Autowired
+    private MigrationService migrations;
 
     @Test
     void purge_removesOnlyWhatIsOlderThanItsRetention() {
@@ -60,6 +64,27 @@ class ExpiryJobIT extends IntegrationTest {
         expiryJob.purge(Instant.now());
 
         assertThat(jdbc.sql("select reader from app_deps").query(String.class).list()).containsExactly("kalendarz");
+    }
+
+    @Test
+    void purge_dropsTheCopiesOfOldDataChanges_andProposalsNobodyApplied() {
+        appRegistry.deploy(new DeployRequest("Kalendarz", null, "<p>x</p>"), BUILDER_EMAIL);
+        data.set("kalendarz", "days", "a", new DataWrite(Map.of("n", 1), null), "guest:Anna");
+        String code = "function migrate(doc) { return {m: doc.n}; }";
+        long applied = migrations.propose("kalendarz", null, code, null, null, BUILDER_EMAIL).id();
+        migrations.applyWithHtml("kalendarz", applied, "<p>y</p>", BUILDER_EMAIL);
+        long stale = migrations.propose("kalendarz", null, code, null, null, BUILDER_EMAIL).id();
+        long fresh = migrations.propose("kalendarz", null, code, null, null, BUILDER_EMAIL).id();
+        jdbc.sql("update migrations set copy_until = now() - interval '1 day' where id = ?").param(applied).update();
+        jdbc.sql("update migrations set proposed_at = now() - interval '31 days' where id = ?").param(stale).update();
+
+        expiryJob.purge(Instant.now());
+
+        assertThat(jdbc.sql("select count(*) from migration_docs").query(Long.class).single()).isZero();
+        // The audit of the applied change stays; it just can no longer be undone.
+        assertThat(jdbc.sql("select id from migrations order by id").query(Long.class).list()).containsExactly(applied, fresh);
+        assertThat(jdbc.sql("select copy_until is null from migrations where id = ?").param(applied).query(Boolean.class).single())
+                .isTrue();
     }
 
     @Test

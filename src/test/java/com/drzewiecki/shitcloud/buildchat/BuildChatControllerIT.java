@@ -210,6 +210,48 @@ class BuildChatControllerIT extends ChatIntegrationTest {
     }
 
     @Test
+    void dataChange_isCheckedAndShownAsACard_andTheModelReadsTheWholeCheck() throws Exception {
+        registry.deploy(new DeployRequest("Lunch Poll", null, APP_HTML), BUILDER_EMAIL);
+        data.set("lunch-poll", "votes", "anna", new DataWrite(Map.of("dish", "pierogi"), null), "guest:Anna");
+        String code = "function migrate(doc) { return {meal: doc.dish}; }";
+        model.script(
+                step(List.of(), call("c1", "propose_migration",
+                        json.writeValueAsString(Map.of("code", code, "summary", "dish becomes meal")))),
+                answer("Replace the app to apply it"));
+
+        List<Map<String, Object>> parts = chat(builder(), turn(null, "Rename dish to meal", "lunch-poll"));
+
+        Long id = jdbc.sql("select id from migrations").query(Long.class).single();
+        assertThat(parts(parts, "tool-output-available")).singleElement().satisfies(part -> assertThat(part.get("output"))
+                .isEqualTo(Map.of("migration", id.intValue(), "documents", 1, "changed", 1, "removed", 0, "failed", 0)));
+        assertThat(parts(parts, "data-migration")).singleElement().satisfies(part -> {
+            assertThat(part.get("id")).isEqualTo("migration");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> card = (Map<String, Object>) part.get("data");
+            assertThat(card).containsEntry("space", "lunch-poll").containsEntry("summary", "dish becomes meal");
+            assertThat(card.get("examples")).asString().contains("pierogi");
+        });
+        List<Message> last = model.prompts().getLast().getInstructions();
+        assertThat(((ToolResponseMessage) last.getLast()).getResponses().getFirst().responseData())
+                .startsWith("Checked migration " + id + " of lunch-poll — nothing is written yet.")
+                .contains("meal added to 1", "dish removed from 1");
+        // Checked, not applied.
+        assertThat(jdbc.sql("select data::text from docs").query(String.class).single()).contains("pierogi", "dish");
+    }
+
+    @Test
+    void dataChange_inANewAppConversation_isRefusedToTheModel() throws Exception {
+        model.script(
+                step(List.of(), call("c1", "propose_migration", "{\"code\":\"function migrate(d) { return d; }\",\"summary\":\"x\"}")),
+                answer("Nothing to convert"));
+
+        List<Map<String, Object>> parts = chat(builder(), turn(null, "Convert", null));
+
+        assertThat(parts(parts, "tool-output-error")).singleElement()
+                .satisfies(part -> assertThat((String) part.get("errorText")).contains("creates a new app"));
+    }
+
+    @Test
     void conversations_belongToTheirBuilder() throws Exception {
         model.script(answer("Mine"));
         List<Map<String, Object>> parts = chat(builder(), turn(null, "Mine", null));

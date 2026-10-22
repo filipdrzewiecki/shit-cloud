@@ -25,7 +25,7 @@ class SchemaIT extends IntegrationTest {
                         where table_schema = current_schema() and table_type = 'BASE TABLE'""")
                 .query(String.class).list();
 
-        assertThat(tables).contains("apps", "app_versions", "docs", "doc_history");
+        assertThat(tables).contains("apps", "app_versions", "docs", "doc_history", "migrations", "migration_docs");
     }
 
     @Test
@@ -34,7 +34,8 @@ class SchemaIT extends IntegrationTest {
                 .query(String.class).list();
 
         assertThat(indexes).contains("apps_last_used_at", "app_versions_created_at", "doc_history_doc",
-                "doc_history_changed_at", "docs_space_collection_doc_id_key", "app_versions_app_slug_version_key");
+                "doc_history_changed_at", "docs_space_collection_doc_id_key", "app_versions_app_slug_version_key",
+                "migrations_space", "migrations_proposed_at");
     }
 
     @Test

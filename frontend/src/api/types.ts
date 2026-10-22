@@ -95,3 +95,38 @@ export interface DependencyView {
   firstSeenAt: string
   lastSeenAt: string
 }
+
+/** Documents a data-change run went through: documents = changed + unchanged + removed + failed. */
+export interface MigrationCounts {
+  documents: number
+  changed: number
+  unchanged: number
+  removed: number
+  failed: number
+}
+
+/** A data change the build chat applied to an app (`GET /api/apps/{slug}/migrations`). */
+export interface MigrationView {
+  id: number
+  space: string
+  status: 'applied' | 'undone'
+  collections: string[]
+  summary: string | null
+  checked: MigrationCounts
+  result: MigrationCounts | null
+  htmlVersionBefore: number | null
+  htmlVersionAfter: number | null
+  appliedBy: string | null
+  appliedAt: string | null
+  undoneBy: string | null
+  undoneAt: string | null
+  /** Undo is possible and the copy downloadable until then; null once the copy is gone. */
+  copyUntil: string | null
+  undoable: boolean
+}
+
+export interface MigrationUndo {
+  restored: number
+  removed: number
+  htmlVersion: number | null
+}

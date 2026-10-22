@@ -13,6 +13,8 @@ import type {
   GuestLoginRequest,
   GuestToken,
   Me,
+  MigrationUndo,
+  MigrationView,
   Platform,
 } from './types'
 
@@ -56,8 +58,24 @@ export function useRestore(slug: string) {
   return useAppMutation(() => api.post<AppSummary>(`/api/apps/${slug}/restore`, {}))
 }
 
+/** With `migrationId`, the app's data is converted by that checked data change in the same step. */
 export function useReplaceHtml(slug: string) {
-  return useAppMutation((html: string) => api.put<AppSummary>(`/api/apps/${slug}/html`, { html }))
+  return useAppMutation(({ html, migrationId }: { html: string; migrationId?: number | null }) =>
+    api.put<AppSummary>(`/api/apps/${slug}/html`, { html, migrationId: migrationId ?? null }),
+  )
+}
+
+/** Data changes applied to the app (builders only), newest first. */
+export function useMigrations(slug: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['apps', slug, 'migrations'],
+    queryFn: () => api.get<MigrationView[]>(`/api/apps/${encodeURIComponent(slug)}/migrations`),
+    enabled,
+  })
+}
+
+export function useUndoMigration() {
+  return useAppMutation((id: number) => api.post<MigrationUndo>(`/api/migrations/${id}/undo`, {}))
 }
 
 export function useDeleteApp(slug: string) {

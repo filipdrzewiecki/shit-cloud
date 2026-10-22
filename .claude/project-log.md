@@ -2,6 +2,36 @@
 
 What each closed ticket delivered, newest first. Durable details live in the files each entry points to.
 
+## SHC-0011 — AI data migration (closed 2026-10-22)
+
+- The build chat converts a reworked app's stored documents: `propose_migration` with `function migrate(doc,
+  collection)` is checked over every document in a GraalJS sandbox (CONSTRAINED, no Java/IO, statement limit per
+  document, 60 s per run) and shown as a card (counts, field changes, before/after, failures, readers).
+- Applied with Replace HTML in one transaction — in place, not into a new space (space = slug); runs the transform
+  again on current data, all or nothing; old documents copied for 30 days (`V5__migrations.sql`: `migrations` audit +
+  `migration_docs`); history ops `migrate`/`undo`.
+- Undo (latest change, while the copy exists) puts back documents and HTML; download of the copy; `ExpiryJob` drops
+  copies and unapplied proposals. Every data write takes a shared per-space advisory lock; apply/undo the exclusive.
+- Chat package gained `onData`/`renderData`; `chat.max-steps` 5 → 8. Owner accepted all recommendations (Q1–Q8).
+- Tests written, not run by me; the owner's `mvn verify` and check on `test` are open.
+- Reference: `.claude/docs/data-migrations.md`, `.claude/docs/postgres.md`, `.claude/docs/chat-protocol.md`,
+  `.claude/AGENTS.md`.
+
+## SHC-0010 — Dependency log + cross-space reads (closed 2026-10-21)
+
+- Apps read other apps' data with `shitcloud.db.space(slug).find(...)` (SDK 3): no writers on it, and the bridge
+  honours a message's `space` for `find` only. Any existing app is readable, archived included.
+- Dependency log `app_deps` (`V4__deps.sql`): the host page names the app on screen in `X-ShitCloud-App` (CORS
+  allowed); each successful data call records reader, space, collection, read/write — own use too; refreshed at
+  most hourly, best effort; rows go with either app or after `data.deps-ttl` (90 d). Self-declared → informs only.
+- Shown as "Its data is used by …" on the app page for builders (`GET /api/deps/{space}`) and in the chat's
+  `get_deps`, which the prompt calls before changing a data shape (warns, does not block). Not in the Delete dialog
+  (owner). The chat can now build apps over other apps' data (`list_spaces` + `sample_docs` first).
+- Live with `978aa3d`; tests written before deploy. The owner's check on `test` is still open
+  (`.claude/docs/product-roadmap.md`).
+- Reference: `.claude/docs/data-api.md`, `.claude/docs/chat-protocol.md`, `.claude/docs/app-management.md`,
+  `.claude/docs/postgres.md`.
+
 ## SHC-0009 — ShitCloud tools + system prompt (closed 2026-10-21)
 
 - The build chat edits apps in place: `edit_draft` (exact-text replacements on the latest draft, or the deployed app

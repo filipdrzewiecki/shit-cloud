@@ -42,6 +42,8 @@ public class DataService {
     private static final Pattern COLLECTION = Pattern.compile("[A-Za-z0-9_-]{1,64}");
     private static final Pattern DOC_ID = Pattern.compile("[A-Za-z0-9_.:@-]{1,128}");
     private static final int MAX_DATA_DEPTH = 32;
+    /** First key of the space-wide advisory lock; the second is the space's hash. */
+    private static final int SPACE_LOCK = 0x5CDA7A;
     private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {
     };
 
@@ -147,7 +149,10 @@ public class DataService {
         requireDocId(docId);
         Map<String, Object> data = cleanData(write == null ? null : write.data());
         Long expected = write.expectedVersion();
-        return transaction.execute(status -> setLocked(space, collection, docId, data, expected, caller));
+        return transaction.execute(status -> {
+            lockSpaceShared(space);
+            return setLocked(space, collection, docId, data, expected, caller);
+        });
     }
 
     /** Creates a document under a new id that sorts by creation time. */
@@ -155,14 +160,17 @@ public class DataService {
         requireCollection(space, collection);
         Map<String, Object> data = cleanData(write == null ? null : write.data());
         OffsetDateTime now = Timestamps.of(Instant.now());
-        return DocView.of(jdbc.sql("""
-                        insert into docs (space, collection, doc_id, data, version, created_by, created_at,
-                                          updated_by, updated_at)
-                        values (?, ?, ?, ?::jsonb, 1, ?, ?, ?, ?)
-                        returning *""")
-                .params(space, collection, newId(), writeJson(data), caller, now, caller, now)
-                .query(docMapper)
-                .single());
+        return transaction.execute(status -> {
+            lockSpaceShared(space);
+            return DocView.of(jdbc.sql("""
+                            insert into docs (space, collection, doc_id, data, version, created_by, created_at,
+                                              updated_by, updated_at)
+                            values (?, ?, ?, ?::jsonb, 1, ?, ?, ?, ?)
+                            returning *""")
+                    .params(space, collection, newId(), writeJson(data), caller, now, caller, now)
+                    .query(docMapper)
+                    .single());
+        });
     }
 
     /**
@@ -189,11 +197,70 @@ public class DataService {
         return new ExportView(app, Instant.now(), collections);
     }
 
+    /** The collections of a space that hold documents, by name. */
+    public List<String> collections(String space) {
+        return jdbc.sql("select distinct collection from docs where space = ? order by collection")
+                .param(space)
+                .query(String.class)
+                .list();
+    }
+
+    public long count(String space, List<String> collections) {
+        return jdbc.sql("select count(*) from docs where space = ? and collection = any(?)")
+                .params(space, collections.toArray(String[]::new))
+                .query(Long.class)
+                .single();
+    }
+
+    /**
+     * Documents of some collections in storage order, after the row {@code afterRow} (0 for the first page) — for
+     * walking a whole space without holding it in memory.
+     */
+    public List<DocRecord> page(String space, List<String> collections, long afterRow, int limit) {
+        return jdbc.sql("select * from docs where space = ? and collection = any(?) and id > ? order by id limit ?")
+                .params(space, collections.toArray(String[]::new), afterRow, limit)
+                .query(docMapper)
+                .list();
+    }
+
+    /**
+     * Keeps every write to the space waiting until the current transaction ends. Writes take the same lock shared,
+     * so they never wait for each other, only for this — taken while a migration rewrites the space.
+     */
+    public void lockSpace(String space) {
+        // The function returns void; the row mapper only drives the query.
+        jdbc.sql("select pg_advisory_xact_lock(?, hashtext(?))").params(SPACE_LOCK, space).query((row, i) -> true).list();
+    }
+
+    /** Waits only while {@link #lockSpace} is held for the space; see there. */
+    private void lockSpaceShared(String space) {
+        jdbc.sql("select pg_advisory_xact_lock_shared(?, hashtext(?))").params(SPACE_LOCK, space)
+                .query((row, i) -> true).list();
+    }
+
+    /**
+     * Replaces a document's fields as part of a migration, inside the caller's transaction (which holds
+     * {@link #lockSpace}); the replaced state goes to history under {@code op}.
+     */
+    public void rewrite(DocRecord current, Map<String, Object> data, String op, String caller, Instant now) {
+        writeHistory(current, op, caller, now);
+        jdbc.sql("update docs set data = ?::jsonb, version = version + 1, updated_by = ?, updated_at = ? where id = ?")
+                .params(writeJson(data), caller, Timestamps.of(now), current.id())
+                .update();
+    }
+
+    /** Removes a document as part of a migration; see {@link #rewrite}. */
+    public void erase(DocRecord current, String op, String caller, Instant now) {
+        writeHistory(current, op, caller, now);
+        jdbc.sql("delete from docs where id = ?").param(current.id()).update();
+    }
+
     /** Removes a document; its last state stays in history. False when there was nothing to remove. */
     public boolean remove(String space, String collection, String docId, Long expectedVersion, String caller) {
         requireCollection(space, collection);
         requireDocId(docId);
         Boolean removed = transaction.execute(status -> {
+            lockSpaceShared(space);
             DocRecord current = lock(space, collection, docId).orElse(null);
             if (current == null) {
                 requireVersion(expectedVersion, 0);
@@ -303,9 +370,12 @@ public class DataService {
 
     /**
      * The fields to store. {@code id} and fields starting with {@code _} are what reads add to a document, so an
-     * app that writes back what it read just works: they are dropped, not refused.
+     * app that writes back what it read just works: they are dropped, not refused. Also applied to what a data
+     * migration produces.
+     *
+     * @throws DataException {@code BAD_REQUEST} or {@code TOO_LARGE} with a readable reason
      */
-    private Map<String, Object> cleanData(Map<String, Object> data) {
+    public Map<String, Object> cleanData(Map<String, Object> data) {
         if (data == null) {
             throw DataException.badRequest("data must be an object");
         }

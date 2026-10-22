@@ -70,6 +70,17 @@ function describe(name: string, part: ToolPartLike, phase: 'busy' | 'done' | 'fa
       if (others === 0) return `Checked who uses ${app}'s data (no other apps)`
       return `Checked who uses ${app}'s data (${others} other ${others === 1 ? 'app' : 'apps'})`
     }
+    case 'propose_migration': {
+      if (phase === 'busy') return 'Checking a change of the stored data…'
+      if (phase === 'failed') return 'Could not check the change of the stored data'
+      const documents = field(part.output, 'documents')
+      const failed = field(part.output, 'failed')
+      if (typeof documents !== 'number') return 'Checked a change of the stored data'
+      const docs = `${documents} ${documents === 1 ? 'document' : 'documents'}`
+      return typeof failed === 'number' && failed > 0
+        ? `Checked a change of the stored data (${docs}, ${failed} failed)`
+        : `Checked a change of the stored data (${docs})`
+    }
     case 'get_app': {
       const slug = field(part.input, 'slug')
       const app = typeof slug === 'string' ? slug : 'the app'

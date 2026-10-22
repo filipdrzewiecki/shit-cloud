@@ -69,7 +69,7 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
 - All tasks are in `.claude/docs`, one folder per ticket: `.claude/docs/SHC-{number}-{short-name}/`
 - Finished tickets are **closed** (ask first): knowledge compacted into project `.md` files, the ticket
   folder removed, a short entry added to `.claude/project-log.md` — see "Closing the ticket" in the SDLC flow
-- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `postgres.md`, `app-origin.md`, `data-api.md`, `app-management.md`, `chat-protocol.md`
+- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `postgres.md`, `app-origin.md`, `data-api.md`, `app-management.md`, `chat-protocol.md`, `data-migrations.md`
 - Ticket naming pattern: `SHC-{number}` (four digits, e.g. `SHC-0001`)
 
 ## MANDATORY — Ticket-based implementation rule
@@ -117,18 +117,21 @@ code and report findings. Compiling (`mvn -q compile`) and typechecking the fron
 src/main/java/com/drzewiecki/shitcloud/
   Application.java
   controller/      AppController, MeController, PlatformController, GuestLoginController, DataController,
-                   DepsController (/api/deps/{space})
+                   DepsController (/api/deps/{space}), MigrationController
   chat/            generic, copyable build-chat core — imports nothing else from ShitCloud (ChatPackageBoundaryTest):
                    ChatEngine (own step loop over Spring AI ChatModel.stream: text → tool calls → run → next step),
                    UiStreamWriter + UiParts (AI SDK UI message stream v1), ChatTool/ToolResult (plug-in tools),
                    HistoryMapper (saved UIMessages → prompt; only the latest data part in full), ConversationStore,
                    DataParts (a tool reads the latest data part, e.g. the draft, via TurnContext.data())
   buildchat/       ShitCloud's chat: BuildChatController (/api/chat), BuildChatPrompt, tools SaveDraftTool,
-                   EditDraftTool (exact-text edits), GetAppTool, ListSpacesTool, SampleDocsTool, GetDepsTool;
+                   EditDraftTool (exact-text edits), GetAppTool, ListSpacesTool, SampleDocsTool, GetDepsTool,
+                   ProposeMigrationTool;
                    Drafts (checks, base)
   data/            DataService (docs + doc_history, row locks), FilterTranslator (Mongo-style filter → SQL on JSONB),
                    DataProperties, records, DataException + DataExceptionHandler ({code, message} bodies),
                    DependencyLog (app_deps: which app used which data, from the X-ShitCloud-App header)
+  migration/       MigrationService (check, apply with Replace HTML, undo, copy), MigrationSandbox (GraalJS, CONSTRAINED),
+                   MigrationProperties, records — data-migrations.md
   apps/            the apps port: AppsConnectorConfig (2nd Tomcat connector), PortFence, AppsSecurityConfig
                    (own filter chain, framing allowed), AppOrigin (url pattern), AppDocumentController (CSP),
                    SdkInjector, LibraryMirrorConfig
@@ -141,7 +144,7 @@ src/main/java/com/drzewiecki/shitcloud/
 src/main/resources/
   application.properties, application-dev.properties
   db/migration/    Flyway SQL migrations (V1 apps, app_versions, docs, doc_history; V2 archive; V3 chat_conversations,
-                   chat_messages; V4 app_deps)
+                   chat_messages; V4 app_deps; V5 migrations, migration_docs)
   build-chat/      chat-rules.md (system prompt preamble); builder-guide.md is copied in from frontend/src/guide by
                    the build (pom resources + Dockerfile) — one guide for /guide and the chat
   sample-apps/     seed HTML apps for the mockup
@@ -176,7 +179,10 @@ Every endpoint requires `Authorization: Bearer <token>` (Auth0 or guest) unless 
 | GET  | `/api/apps/{slug}` | signed in | App + HTML + `frameUrl` (on the apps origin); marks it used (an archived app stays archived) |
 | POST | `/api/apps` | builder | Deploy `{name, description?, html}`; same name → new version (kept 90 days in `app_versions`); owner = creator, `updatedBy` = caller; 413 over 5 MB, 409 concurrent deploy; un-archives an archived app |
 | POST | `/api/apps/{slug}/archive` · `/restore` | builder | Hide from the list (data, HTML, versions kept; `archivedAt/By` recorded) · bring back |
-| PUT  | `/api/apps/{slug}/html` | builder | `{html}` → next version of that app; name, description, archive state and data unchanged |
+| PUT  | `/api/apps/{slug}/html` | builder | `{html, migrationId?}` → next version of that app; name, description, archive state unchanged; with `migrationId` the chat's checked data change is applied in the same transaction (409 `MIGRATION_STALE` / `MIGRATION_FAILED`) |
+| GET  | `/api/apps/{slug}/migrations` | builder | Data changes applied to the app, newest first (`undoable`, `copyUntil`) |
+| POST | `/api/migrations/{id}/undo` | builder | Documents and HTML back as before the change → `{restored, removed, htmlVersion}`; latest change only, while its copy is kept |
+| GET  | `/api/migrations/{id}/copy` | builder | The documents as they were before → `<slug>-before-change-<id>.json` |
 | DELETE | `/api/apps/{slug}?confirm={slug}` | builder | Irreversible: app, versions, documents and history → `{documents, versions, history}`; wrong `confirm` → 400 |
 | GET  | `/api/apps/{slug}/usage` | signed in | `{documents, collections, versions}` (shown before deleting) |
 | GET  | `/api/apps/{slug}/export` | signed in | All the app's documents by collection → download `<slug>-data.json` (cap `data.max-export-documents`, 413 above) |
@@ -188,7 +194,8 @@ Every endpoint requires `Authorization: Bearer <token>` (Auth0 or guest) unless 
 | POST | `/api/data/{space}/{collection}` | signed in | `{data}` → 201 `DocView` with a generated id |
 | DELETE | `/api/data/{space}/{collection}/{id}` | signed in | `?expectedVersion=` → `{deleted}`; last state → `doc_history` |
 
-Data API errors are `{code, message}` (`BAD_REQUEST`, `NO_SUCH_APP`, `VERSION_CONFLICT`, `CONFLICT`, `TOO_LARGE`);
+Data API errors are `{code, message}` (`BAD_REQUEST`, `NO_SUCH_APP`, `VERSION_CONFLICT`, `CONFLICT`, `TOO_LARGE`;
+migrations: `MIGRATION_STALE`, `MIGRATION_FAILED`, `NO_SUCH_MIGRATION`);
 `space` must be an existing app. Guests read and write too.
 
 Apps port (public, no token): `GET /{slug}/` (path mode; `/{slug}` redirects) or `GET /` (host mode) → the app's

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useChat } from '@ai-sdk/react'
 import type { UIMessage } from 'ai'
 import { draftOf, type Draft } from './drafts'
-import { MessageView } from './parts'
+import { MessageView, type DataPartLike, type RenderData } from './parts'
 import { serverTransport, type ChatFetch } from './serverChat'
 import './chat.css'
 
@@ -21,6 +21,10 @@ export interface ChatPanelProps {
   onDraft?: (draft: Draft) => void
   /** The server named the new conversation (first answer only). */
   onConversation?: (conversation: { id: string; title: string }) => void
+  /** Any other data part as it arrives, e.g. one of the host's own kinds. */
+  onData?: (part: DataPartLike) => void
+  /** Draws data parts of the host's own kinds in the conversation. Must be a stable function (module level or memoised). */
+  renderData?: RenderData
 }
 
 /** Seconds without a new part after which the answer counts as quiet (the model is writing a long tool input). */
@@ -36,8 +40,10 @@ export function ChatPanel(props: ChatPanelProps) {
   // The SDK keeps the callbacks it was created with; these refs always point at the latest props.
   const onDraft = useRef(props.onDraft)
   const onConversation = useRef(props.onConversation)
+  const onData = useRef(props.onData)
   onDraft.current = props.onDraft
   onConversation.current = props.onConversation
+  onData.current = props.onData
 
   const [transport] = useState(() =>
     serverTransport({ endpoint, fetch, conversationId: () => conversation.current, targetSlug }),
@@ -56,6 +62,7 @@ export function ChatPanel(props: ChatPanelProps) {
       }
       const draft = draftOf(part)
       if (draft) onDraft.current?.(draft)
+      else onData.current?.(part as DataPartLike)
     },
   })
 
@@ -93,7 +100,7 @@ export function ChatPanel(props: ChatPanelProps) {
           <div className="sc-chat-message sc-chat-assistant">{props.greeting}</div>
         )}
         {chat.messages.map((message) => (
-          <MessageView key={message.id} message={message} />
+          <MessageView key={message.id} message={message} renderData={props.renderData} />
         ))}
         {busy && (
           <div className="sc-chat-working">

@@ -162,6 +162,7 @@ title = first 60 characters. Verified on `test` 2026-10-20: a Polish lunch-poll 
 | `get_app` | `slug` | the source (≤ 300 KB) | "Read team-calendar" |
 | `list_spaces` | — | `[{space, name, description, collections: {name: count}}]`, non-archived apps | "Listed 7 apps and their data" |
 | `get_deps` | `space` | apps that used the space's data in 90 days, per collection, read/write, last used (`DependencyLog`) | "Checked who uses team-calendar's data (2 other apps)" |
+| `propose_migration` | `code` (`function migrate(doc, collection)`), `summary`, `collections?` | the whole check: counts, field changes, ≤ 3 before/after (cut like `sample_docs`), failures, readers, what to do next | "Checked a change of the stored data (412 documents)" + `data-migration` card |
 | `sample_docs` | `space`, `collection`, `n` (3, max 5) | newest documents, flat as the SDK returns them; strings > 200 chars and docs > 2 KB cut | "Looked at 3 documents of team-calendar / marks" |
 
 - **Edits instead of rewrites** (owner, SHC-0009 — departs from handoff §7.1): the first version of an app is a
@@ -222,6 +223,9 @@ for (;;) {
 - **SHC-0007**: done — see "Server implementation" above.
 - **SHC-0008**: done — see "Client implementation" below.
 - **SHC-0009**: done — see "ShitCloud's tools" above.
+- **SHC-0011**: done — `propose_migration` converts a reworked app's data in place, applied with Replace HTML
+  (`data-migrations.md`). `chat.max-steps` went 5 → 8: a data change takes get_app, sample_docs, get_deps,
+  edit_draft and propose_migration before the reply.
 - **SHC-0010**: done — `get_deps` (warn before changing a data shape, names the apps that read it; informs, does not
   block) and apps reading other spaces (`space().find`), learned through `list_spaces` + `sample_docs`.
 
@@ -232,7 +236,8 @@ for (;;) {
   `@ai-sdk/react@4.0.150`, `react-markdown@10.1.0` (+89 KB gzip on the GUI bundle: 148 → 237 KB).
 - `ChatPanel` props: `endpoint`, `fetch` (the GUI passes `authorizedFetch` from `api/client.ts` — base URL, token,
   401 → sign-in, non-OK → `ApiError` with the server's message, because `DefaultChatTransport` would surface the raw
-  body), `conversationId`/`initialMessages` (continue), `targetSlug` (rework), `onDraft`, `onConversation`.
+  body), `conversationId`/`initialMessages` (continue), `targetSlug` (rework), `onDraft`, `onConversation`, `onData` (any other data part as it arrives) and `renderData`
+  (draws the host's own data parts in the conversation — must be stable; ShitCloud's `MigrationCard`).
 - `prepareSendMessagesRequest` → `{conversationId, message (text parts only), targetSlug (only when starting)}`.
 - One `useChat` per conversation: switching = a new `key`. The server naming a new conversation
   (`data-conversation`) must **not** remount the panel (it would drop the stream): BuildPage keeps it as

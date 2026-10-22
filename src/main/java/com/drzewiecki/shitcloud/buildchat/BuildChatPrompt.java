@@ -42,7 +42,9 @@ public class BuildChatPrompt {
                 Before touching code that reads or writes data, look at the app's documents with `sample_docs` \
                 (`list_spaces` names its collections). Keep its collections and document shapes unless the user \
                 asks otherwise: other people's data is stored in them, and other apps may read it — call \
-                `get_deps` with `%1$s` before changing how its data is stored.""".formatted(targetSlug);
+                `get_deps` with `%1$s` before changing how its data is stored. When the change does need the stored \
+                documents in a new shape, convert them with `propose_migration` once the draft reads the new \
+                shape.""".formatted(targetSlug);
     }
 
     private static String read(String path) {

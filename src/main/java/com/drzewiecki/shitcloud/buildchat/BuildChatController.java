@@ -54,12 +54,13 @@ public class BuildChatController {
     public BuildChatController(ChatEngine engine, ConversationStore conversations, BuildChatPrompt prompt,
                                SaveDraftTool saveDraft, EditDraftTool editDraft, GetAppTool getApp,
                                ListSpacesTool listSpaces, SampleDocsTool sampleDocs, GetDepsTool getDeps,
+                               ProposeMigrationTool proposeMigration,
                                AppRegistry registry, JsonMapper json,
                                @Value("${spring.ai.anthropic.api-key:}") String apiKey) {
         this.engine = engine;
         this.conversations = conversations;
         this.prompt = prompt;
-        this.tools = List.of(saveDraft, editDraft, getApp, listSpaces, sampleDocs, getDeps);
+        this.tools = List.of(saveDraft, editDraft, getApp, listSpaces, sampleDocs, getDeps, proposeMigration);
         this.registry = registry;
         this.json = json;
         this.available = !apiKey.isBlank();
