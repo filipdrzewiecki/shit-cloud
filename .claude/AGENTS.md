@@ -69,7 +69,7 @@ minutes through an AI chat or uploaded as HTML. Apps are disposable, data is dur
 - All tasks are in `.claude/docs`, one folder per ticket: `.claude/docs/SHC-{number}-{short-name}/`
 - Finished tickets are **closed** (ask first): knowledge compacted into project `.md` files, the ticket
   folder removed, a short entry added to `.claude/project-log.md` — see "Closing the ticket" in the SDLC flow
-- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `postgres.md`, `app-origin.md`, `data-api.md`, `app-management.md`, `chat-protocol.md`, `data-migrations.md`, `html-import.md`
+- Topic references (durable knowledge from closed tickets): `.claude/docs/<topic>.md` — `auth.md`, `postgres.md`, `app-origin.md`, `data-api.md`, `app-management.md`, `chat-protocol.md`, `data-migrations.md`, `html-import.md`; the owner's open manual checks: `acceptance-checklist.md`
 - Ticket naming pattern: `SHC-{number}` (four digits, e.g. `SHC-0001`)
 
 ## MANDATORY — Ticket-based implementation rule

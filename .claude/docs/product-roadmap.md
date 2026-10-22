@@ -53,6 +53,8 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` not started
   Calendar (people, teams, vacation/office days, invoicing caps, integration budget) runs on `test` for several
   users through the SDK, bridge and Data API; no separate app built.*
 
+> **Owner's checks still open** (SHC-0008 – SHC-0013): step by step in `.claude/docs/acceptance-checklist.md`.
+
 ## Phase 2 — Chat
 
 **Done when:** 4 of 5 different apps generated from a prompt work without manual fixes.
